@@ -10,6 +10,7 @@ public class Project {
     private double budget;
     private String specialRequirements;
     private String clientInfo;
+    private double spentAmount = 0.0;
 
     public Project() {
     }
@@ -59,4 +60,7 @@ public class Project {
 
     public String getClientInfo() { return clientInfo; }
     public void setClientInfo(String clientInfo) { this.clientInfo = clientInfo; }
+
+    public double getSpentAmount() { return spentAmount; }
+    public void setSpentAmount(double spentAmount) { this.spentAmount = spentAmount; }
 }

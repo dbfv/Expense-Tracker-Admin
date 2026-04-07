@@ -1,31 +1,104 @@
 package com.example.expensetrackeradmin;
 
+import android.content.Intent;
+import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.os.Bundle;
 
-import androidx.activity.EdgeToEdge;
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.core.graphics.Insets;
-import androidx.core.view.ViewCompat;
-import androidx.core.view.WindowInsetsCompat;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
+
+import com.google.android.material.floatingactionbutton.ExtendedFloatingActionButton;
+import com.google.firebase.auth.FirebaseAuth;
+
+import java.util.ArrayList;
+import java.util.List;
+
+import models.Project;
 
 public class MainActivity extends AppCompatActivity {
+
+    private FirebaseAuth mAuth;
+    private ExtendedFloatingActionButton fabAddProject;
+
+    private RecyclerView rvProjects;
+    private ProjectAdapter adapter;
+    private List<Project> projectList;
+    private DatabaseHelper dbHelper;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        EdgeToEdge.enable(this);
         setContentView(R.layout.activity_main);
-        ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main), (v, insets) -> {
-            Insets systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars());
-            v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom);
-            return insets;
+
+        mAuth = FirebaseAuth.getInstance();
+        dbHelper = new DatabaseHelper(this);
+
+        // Nút FAB
+        fabAddProject = findViewById(R.id.fabAddProject);
+        fabAddProject.setOnClickListener(v -> {
+            Intent intent = new Intent(MainActivity.this, AddProjectActivity.class);
+            startActivity(intent);
         });
 
-        DatabaseHelper dbHelper = new DatabaseHelper(this);
+        // Setup RecyclerView
+        rvProjects = findViewById(R.id.rvProjects);
+        rvProjects.setLayoutManager(new LinearLayoutManager(this));
 
-        // This exact line forces Android to execute onCreate() or onUpgrade() in your DatabaseHelper
-        // and physically create the ExpenseTracker.db file
-        SQLiteDatabase db = dbHelper.getWritableDatabase();
+        projectList = new ArrayList<>();
+        adapter = new ProjectAdapter(projectList);
+        rvProjects.setAdapter(adapter);
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        loadProjectsFromDB();
+    }
+
+    private void loadProjectsFromDB() {
+        List<Project> freshList = new ArrayList<>();
+        SQLiteDatabase db = dbHelper.getReadableDatabase();
+
+        // Query hết tất cả Project
+        Cursor cursor = db.query(DatabaseHelper.TABLE_PROJECTS, null, null, null, null, null, null);
+
+        if (cursor != null) {
+            while (cursor.moveToNext()) {
+                // Rút trọn bộ 10 cột từ Database lên
+                String id = cursor.getString(cursor.getColumnIndexOrThrow(DatabaseHelper.COLUMN_PROJECT_ID));
+                String name = cursor.getString(cursor.getColumnIndexOrThrow(DatabaseHelper.COLUMN_PROJECT_NAME));
+                String description = cursor.getString(cursor.getColumnIndexOrThrow(DatabaseHelper.COLUMN_PROJECT_DESC));
+                String startDate = cursor.getString(cursor.getColumnIndexOrThrow(DatabaseHelper.COLUMN_PROJECT_START_DATE));
+                String endDate = cursor.getString(cursor.getColumnIndexOrThrow(DatabaseHelper.COLUMN_PROJECT_END_DATE));
+                String manager = cursor.getString(cursor.getColumnIndexOrThrow(DatabaseHelper.COLUMN_PROJECT_MANAGER));
+                String status = cursor.getString(cursor.getColumnIndexOrThrow(DatabaseHelper.COLUMN_PROJECT_STATUS));
+                double budget = cursor.getDouble(cursor.getColumnIndexOrThrow(DatabaseHelper.COLUMN_PROJECT_BUDGET));
+                String specialReq = cursor.getString(cursor.getColumnIndexOrThrow(DatabaseHelper.COLUMN_PROJECT_SPECIAL_REQ));
+                String clientInfo = cursor.getString(cursor.getColumnIndexOrThrow(DatabaseHelper.COLUMN_PROJECT_CLIENT));
+
+                Project p = new Project(id, name, description, startDate, endDate, manager, status, budget, specialReq, clientInfo);
+
+                double spent = dbHelper.getTotalExpenseForProject(id);
+                p.setSpentAmount(spent);
+
+                freshList.add(new Project(
+                        id,
+                        name,
+                        description,
+                        startDate,
+                        endDate,
+                        manager,
+                        status,
+                        budget,
+                        specialReq,
+                        clientInfo
+                ));
+            }
+            cursor.close();
+        }
+
+        adapter.updateData(freshList);
     }
 }

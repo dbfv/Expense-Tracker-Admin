@@ -126,4 +126,15 @@ public class LoginActivity extends AppCompatActivity {
             Toast.makeText(this, "Access denied: Email not authorized!", Toast.LENGTH_LONG).show();
         }
     }
+    @Override
+    protected void onStart() {
+        super.onStart();
+        FirebaseUser currentUser = mAuth.getCurrentUser();
+
+        if (currentUser != null) {
+            Intent intent = new Intent(LoginActivity.this, MainActivity.class);
+            startActivity(intent);
+            finish();
+        }
+    }
 }

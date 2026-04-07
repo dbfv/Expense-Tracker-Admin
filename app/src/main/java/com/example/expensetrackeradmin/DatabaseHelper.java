@@ -117,4 +117,18 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         db.execSQL("DROP TABLE IF EXISTS " + TABLE_EMPLOYEES);
         onCreate(db);
     }
+    public double getTotalExpenseForProject(String projectId) {
+        SQLiteDatabase db = this.getReadableDatabase();
+        double totalSpent = 0.0;
+
+        String query = "SELECT SUM(" + COLUMN_EXPENSE_AMOUNT + ") FROM " + TABLE_EXPENSES + " WHERE " + COLUMN_EXP_PROJECT_ID + " = ?";
+        android.database.Cursor cursor = db.rawQuery(query, new String[]{projectId});
+
+        if (cursor.moveToFirst()) {
+            totalSpent = cursor.getDouble(0);
+        }
+        cursor.close();
+
+        return totalSpent;
+    }
 }
