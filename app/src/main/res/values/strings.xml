@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name" translatable="false">Expense Tracker Admin</string>
+    <string name="default_web_client_id" translatable="false">955060113546-kocdqfiboi8cgsk0ubmv03j6utc34ge9.apps.googleusercontent.com</string>
+</resources>
