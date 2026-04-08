@@ -45,14 +45,12 @@ public class MainActivity extends AppCompatActivity {
 
         etSearchProject = findViewById(R.id.etSearchProject);
 
-        // Bắt sự kiện gõ chữ đến đâu lọc đến đó
         etSearchProject.addTextChangedListener(new android.text.TextWatcher() {
             @Override
             public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
 
             @Override
             public void onTextChanged(CharSequence s, int start, int before, int count) {
-                // Gọi hàm lọc dữ liệu mỗi khi người dùng gõ phím
                 filterProjects(s.toString());
             }
 

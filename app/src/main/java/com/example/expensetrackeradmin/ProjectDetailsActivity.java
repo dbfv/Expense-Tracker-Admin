@@ -1,8 +1,12 @@
 package com.example.expensetrackeradmin;
 
+import android.app.Dialog;
 import android.content.Intent;
 import android.graphics.Color;
 import android.os.Bundle;
+import android.view.View;
+import android.view.Window;
+import android.widget.Button;
 import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -13,6 +17,7 @@ import androidx.core.content.ContextCompat;
 
 import com.google.android.material.chip.Chip;
 import com.google.android.material.floatingactionbutton.ExtendedFloatingActionButton;
+import com.google.android.material.textfield.TextInputEditText;
 
 import java.text.DecimalFormat;
 
@@ -42,12 +47,15 @@ public class ProjectDetailsActivity extends AppCompatActivity {
         Toolbar toolbar = findViewById(R.id.toolbarDetails);
         toolbar.setNavigationOnClickListener(v -> finish());
 
-        // Nạp Menu Edit vào Toolbar
         toolbar.inflateMenu(R.menu.menu_project_details);
         toolbar.setOnMenuItemClickListener(item -> {
             if (item.getItemId() == R.id.action_edit) {
-                // TODO: Chuyển sang EditProjectActivity
-                Toast.makeText(this, "Chuẩn bị mở form Edit...", Toast.LENGTH_SHORT).show();
+                Intent intent = new Intent(ProjectDetailsActivity.this, AddProjectActivity.class);
+                intent.putExtra("PROJECT_ID", projectId);
+                startActivity(intent);
+                return true;
+            } else if (item.getItemId() == R.id.action_delete) {
+                showDeleteConfirmationDialog();
                 return true;
             }
             return false;
@@ -55,8 +63,9 @@ public class ProjectDetailsActivity extends AppCompatActivity {
 
         // Bắt sự kiện Add Expense
         fabAddExpense.setOnClickListener(v -> {
-            // TODO: Chuyển sang AddExpenseActivity kèm theo projectId
-            Toast.makeText(this, "Chuẩn bị mở form New Expense...", Toast.LENGTH_SHORT).show();
+            Intent intent = new Intent(ProjectDetailsActivity.this, AddExpenseActivity.class);
+            intent.putExtra("PROJECT_ID", projectId);
+            startActivity(intent);
         });
     }
 
@@ -124,5 +133,39 @@ public class ProjectDetailsActivity extends AppCompatActivity {
                 tvProgressPct.setTextColor(ContextCompat.getColor(this, R.color.on_primary_dark));
             }
         }
+    }
+
+    private void showDeleteConfirmationDialog() {
+        String projectName = dbHelper.getProjectNameById(projectId);
+        if (projectName == null) {
+            Toast.makeText(this, "Project not found!", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        Dialog dialog = new Dialog(this);
+        dialog.setContentView(R.layout.dialog_delete_project);
+        dialog.setTitle("Delete Project");
+
+        TextInputEditText etConfirmName = dialog.findViewById(R.id.etConfirmProjectName);
+        Button btnCancel = dialog.findViewById(R.id.btnCancel);
+        Button btnDelete = dialog.findViewById(R.id.btnDelete);
+
+        btnCancel.setOnClickListener(v -> dialog.dismiss());
+        btnDelete.setOnClickListener(v -> {
+            String enteredName = etConfirmName.getText().toString().trim();
+            if (enteredName.equals(projectName)) {
+                if (dbHelper.deleteProject(projectId)) {
+                    Toast.makeText(this, "Project deleted successfully!", Toast.LENGTH_SHORT).show();
+                    dialog.dismiss();
+                    finish();
+                } else {
+                    Toast.makeText(this, "Error deleting project!", Toast.LENGTH_SHORT).show();
+                }
+            } else {
+                Toast.makeText(this, "Project name does not match!", Toast.LENGTH_SHORT).show();
+            }
+        });
+
+        dialog.show();
     }
 }

@@ -82,6 +82,7 @@ public class ProjectAdapter extends RecyclerView.Adapter<ProjectAdapter.ProjectV
         } else {
             holder.tvProgressText.setTextColor(android.graphics.Color.parseColor("#79747E")); // Màu outline
         }
+
         holder.itemView.setOnClickListener(v -> {
             android.content.Intent intent = new android.content.Intent(context, ProjectDetailsActivity.class);
             intent.putExtra("PROJECT_ID", project.getProjectId());

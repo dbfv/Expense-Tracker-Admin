@@ -31,6 +31,8 @@ public class AddProjectActivity extends AppCompatActivity {
     private DatabaseHelper dbHelper;
 
     private final SimpleDateFormat dateFormatter = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault());
+    private String editingProjectId = null;
+    private boolean isEditMode = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -41,7 +43,14 @@ public class AddProjectActivity extends AppCompatActivity {
         initViews();
         setupToolbar();
 
-        etStartDate.setText(dateFormatter.format(new Date()));
+        String projectId = getIntent().getStringExtra("PROJECT_ID");
+        if (projectId != null && !projectId.isEmpty()) {
+            isEditMode = true;
+            editingProjectId = projectId;
+            loadProjectData(projectId);
+        } else {
+            etStartDate.setText(dateFormatter.format(new Date()));
+        }
 
         etStartDate.setOnClickListener(v -> showDatePicker(etStartDate));
         etEndDate.setOnClickListener(v -> showDatePicker(etEndDate));
@@ -142,6 +151,36 @@ public class AddProjectActivity extends AppCompatActivity {
         spStatus.setAdapter(adapter);
     }
 
+    private void loadProjectData(String projectId) {
+        SQLiteDatabase db = dbHelper.getReadableDatabase();
+        Cursor cursor = db.query(DatabaseHelper.TABLE_PROJECTS, null, 
+                DatabaseHelper.COLUMN_PROJECT_ID + "=?", new String[]{projectId}, null, null, null);
+
+        if (cursor != null && cursor.moveToFirst()) {
+            etProjectName.setText(cursor.getString(cursor.getColumnIndexOrThrow(DatabaseHelper.COLUMN_PROJECT_NAME)));
+            etProjectDesc.setText(cursor.getString(cursor.getColumnIndexOrThrow(DatabaseHelper.COLUMN_PROJECT_DESC)));
+            etStartDate.setText(cursor.getString(cursor.getColumnIndexOrThrow(DatabaseHelper.COLUMN_PROJECT_START_DATE)));
+            etEndDate.setText(cursor.getString(cursor.getColumnIndexOrThrow(DatabaseHelper.COLUMN_PROJECT_END_DATE)));
+            spManager.setText(cursor.getString(cursor.getColumnIndexOrThrow(DatabaseHelper.COLUMN_PROJECT_MANAGER)), false);
+            spStatus.setText(cursor.getString(cursor.getColumnIndexOrThrow(DatabaseHelper.COLUMN_PROJECT_STATUS)), false);
+            
+            double budget = cursor.getDouble(cursor.getColumnIndexOrThrow(DatabaseHelper.COLUMN_PROJECT_BUDGET));
+            java.text.DecimalFormat formatter = new java.text.DecimalFormat("#,###");
+            etProjectBudget.setText(formatter.format(budget).replace(",", "."));
+            
+            etSpecialReq.setText(cursor.getString(cursor.getColumnIndexOrThrow(DatabaseHelper.COLUMN_PROJECT_SPECIAL_REQ)));
+            etClientInfo.setText(cursor.getString(cursor.getColumnIndexOrThrow(DatabaseHelper.COLUMN_PROJECT_CLIENT)));
+            
+            cursor.close();
+        }
+
+        Toolbar toolbar = findViewById(R.id.toolbarAddProject);
+        if (toolbar != null) {
+            toolbar.setTitle("Edit Project");
+        }
+        btnSaveProject.setText("Update Project");
+    }
+
     private void saveProjectToDatabase() {
         String name = etProjectName.getText().toString().trim();
         String desc = etProjectDesc.getText().toString().trim();
@@ -153,9 +192,17 @@ public class AddProjectActivity extends AppCompatActivity {
         String specialReq = etSpecialReq.getText().toString().trim();
         String clientInfo = etClientInfo.getText().toString().trim();
 
-        if (name.isEmpty() || desc.isEmpty() || startDate.isEmpty() || endDate.isEmpty() ||
-                manager.isEmpty() || status.isEmpty() || budgetStr.isEmpty()) {
-            Toast.makeText(this, "Please enter all required fields (*)", Toast.LENGTH_LONG).show();
+        StringBuilder missingFields = new StringBuilder();
+        if (name.isEmpty()) missingFields.append("• Project Name\n");
+        if (desc.isEmpty()) missingFields.append("• Description\n");
+        if (startDate.isEmpty()) missingFields.append("• Start Date\n");
+        if (endDate.isEmpty()) missingFields.append("• End Date\n");
+        if (manager.isEmpty()) missingFields.append("• Manager\n");
+        if (status.isEmpty()) missingFields.append("• Status\n");
+        if (budgetStr.isEmpty()) missingFields.append("• Budget\n");
+
+        if (missingFields.length() > 0) {
+            Toast.makeText(this, "Please fill required fields:\n" + missingFields.toString(), Toast.LENGTH_LONG).show();
             return;
         }
 
@@ -183,24 +230,47 @@ public class AddProjectActivity extends AppCompatActivity {
         SQLiteDatabase db = dbHelper.getWritableDatabase();
         ContentValues values = new ContentValues();
 
-        values.put(DatabaseHelper.COLUMN_PROJECT_ID, UUID.randomUUID().toString());
-        values.put(DatabaseHelper.COLUMN_PROJECT_NAME, name);
-        values.put(DatabaseHelper.COLUMN_PROJECT_DESC, desc);
-        values.put(DatabaseHelper.COLUMN_PROJECT_START_DATE, startDate);
-        values.put(DatabaseHelper.COLUMN_PROJECT_END_DATE, endDate);
-        values.put(DatabaseHelper.COLUMN_PROJECT_MANAGER, manager);
-        values.put(DatabaseHelper.COLUMN_PROJECT_STATUS, status);
-        values.put(DatabaseHelper.COLUMN_PROJECT_BUDGET, budget);
-        values.put(DatabaseHelper.COLUMN_PROJECT_SPECIAL_REQ, specialReq);
-        values.put(DatabaseHelper.COLUMN_PROJECT_CLIENT, clientInfo);
+        if (isEditMode) {
+            values.put(DatabaseHelper.COLUMN_PROJECT_ID, editingProjectId);
+            values.put(DatabaseHelper.COLUMN_PROJECT_NAME, name);
+            values.put(DatabaseHelper.COLUMN_PROJECT_DESC, desc);
+            values.put(DatabaseHelper.COLUMN_PROJECT_START_DATE, startDate);
+            values.put(DatabaseHelper.COLUMN_PROJECT_END_DATE, endDate);
+            values.put(DatabaseHelper.COLUMN_PROJECT_MANAGER, manager);
+            values.put(DatabaseHelper.COLUMN_PROJECT_STATUS, status);
+            values.put(DatabaseHelper.COLUMN_PROJECT_BUDGET, budget);
+            values.put(DatabaseHelper.COLUMN_PROJECT_SPECIAL_REQ, specialReq);
+            values.put(DatabaseHelper.COLUMN_PROJECT_CLIENT, clientInfo);
 
-        long newRowId = db.insert(DatabaseHelper.TABLE_PROJECTS, null, values);
+            int rowsUpdated = db.update(DatabaseHelper.TABLE_PROJECTS, values, 
+                    DatabaseHelper.COLUMN_PROJECT_ID + "=?", new String[]{editingProjectId});
 
-        if (newRowId != -1) {
-            Toast.makeText(this, "Project saved successfully!", Toast.LENGTH_SHORT).show();
-            finish();
+            if (rowsUpdated > 0) {
+                Toast.makeText(this, "Project updated successfully!", Toast.LENGTH_SHORT).show();
+                finish();
+            } else {
+                Toast.makeText(this, "Error updating project.", Toast.LENGTH_SHORT).show();
+            }
         } else {
-            Toast.makeText(this, "Error saving project.", Toast.LENGTH_SHORT).show();
+            values.put(DatabaseHelper.COLUMN_PROJECT_ID, UUID.randomUUID().toString());
+            values.put(DatabaseHelper.COLUMN_PROJECT_NAME, name);
+            values.put(DatabaseHelper.COLUMN_PROJECT_DESC, desc);
+            values.put(DatabaseHelper.COLUMN_PROJECT_START_DATE, startDate);
+            values.put(DatabaseHelper.COLUMN_PROJECT_END_DATE, endDate);
+            values.put(DatabaseHelper.COLUMN_PROJECT_MANAGER, manager);
+            values.put(DatabaseHelper.COLUMN_PROJECT_STATUS, status);
+            values.put(DatabaseHelper.COLUMN_PROJECT_BUDGET, budget);
+            values.put(DatabaseHelper.COLUMN_PROJECT_SPECIAL_REQ, specialReq);
+            values.put(DatabaseHelper.COLUMN_PROJECT_CLIENT, clientInfo);
+
+            long newRowId = db.insert(DatabaseHelper.TABLE_PROJECTS, null, values);
+
+            if (newRowId != -1) {
+                Toast.makeText(this, "Project saved successfully!", Toast.LENGTH_SHORT).show();
+                finish();
+            } else {
+                Toast.makeText(this, "Error saving project.", Toast.LENGTH_SHORT).show();
+            }
         }
     }
 }

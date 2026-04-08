@@ -4,8 +4,10 @@ import android.content.Context;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteOpenHelper;
+import android.content.ContentValues;
 
 import models.Project;
+import models.Expense;
 
 public class DatabaseHelper extends SQLiteOpenHelper {
 
@@ -159,5 +161,41 @@ public class DatabaseHelper extends SQLiteOpenHelper {
             cursor.close();
         }
         return project;
+    }
+
+    public boolean deleteProject(String projectId) {
+        SQLiteDatabase db = this.getWritableDatabase();
+        int rowsDeleted = db.delete(TABLE_PROJECTS, COLUMN_PROJECT_ID + "=?", new String[]{projectId});
+        return rowsDeleted > 0;
+    }
+
+    public String getProjectNameById(String projectId) {
+        SQLiteDatabase db = this.getReadableDatabase();
+        String name = null;
+        Cursor cursor = db.query(TABLE_PROJECTS, new String[]{COLUMN_PROJECT_NAME}, COLUMN_PROJECT_ID + "=?", new String[]{projectId}, null, null, null);
+        if (cursor != null && cursor.moveToFirst()) {
+            name = cursor.getString(0);
+            cursor.close();
+        }
+        return name;
+    }
+
+    public boolean insertExpense(Expense expense) {
+        SQLiteDatabase db = this.getWritableDatabase();
+        ContentValues values = new ContentValues();
+        values.put(COLUMN_EXPENSE_ID, expense.getExpenseId());
+        values.put(COLUMN_EXP_PROJECT_ID, expense.getProjectId());
+        values.put(COLUMN_EXPENSE_DATE, expense.getDate());
+        values.put(COLUMN_EXPENSE_AMOUNT, expense.getAmount());
+        values.put(COLUMN_EXPENSE_CURRENCY, expense.getCurrency());
+        values.put(COLUMN_EXPENSE_TYPE, expense.getType());
+        values.put(COLUMN_EXPENSE_PAYMENT_METHOD, expense.getPaymentMethod());
+        values.put(COLUMN_EXPENSE_CLAIMANT, expense.getClaimant());
+        values.put(COLUMN_EXPENSE_STATUS, expense.getStatus());
+        values.put(COLUMN_EXPENSE_DESC, expense.getDescription());
+        values.put(COLUMN_EXPENSE_LOCATION, expense.getLocation());
+
+        long result = db.insert(TABLE_EXPENSES, null, values);
+        return result != -1;
     }
 }
