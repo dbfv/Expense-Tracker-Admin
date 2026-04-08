@@ -34,4 +34,8 @@
 
     <color name="status_on_hold_bg">#FEF08A</color>
     <color name="status_on_hold_text">#A16207</color>
+    <color name="on_surface_variant">#49454F</color>
+
+    <color name="primary_dark">#0A4D54</color>
+    <color name="on_primary_dark">#FFFFFF</color>
 </resources>

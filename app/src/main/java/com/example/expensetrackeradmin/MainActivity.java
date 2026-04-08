@@ -26,6 +26,8 @@ public class MainActivity extends AppCompatActivity {
     private ProjectAdapter adapter;
     private List<Project> projectList;
     private DatabaseHelper dbHelper;
+    private com.google.android.material.textfield.TextInputEditText etSearchProject;
+    private List<Project> allProjectsList = new ArrayList<>();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -35,14 +37,28 @@ public class MainActivity extends AppCompatActivity {
         mAuth = FirebaseAuth.getInstance();
         dbHelper = new DatabaseHelper(this);
 
-        // Nút FAB
         fabAddProject = findViewById(R.id.fabAddProject);
         fabAddProject.setOnClickListener(v -> {
             Intent intent = new Intent(MainActivity.this, AddProjectActivity.class);
             startActivity(intent);
         });
 
-        // Setup RecyclerView
+        etSearchProject = findViewById(R.id.etSearchProject);
+
+        // Bắt sự kiện gõ chữ đến đâu lọc đến đó
+        etSearchProject.addTextChangedListener(new android.text.TextWatcher() {
+            @Override
+            public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+
+            @Override
+            public void onTextChanged(CharSequence s, int start, int before, int count) {
+                // Gọi hàm lọc dữ liệu mỗi khi người dùng gõ phím
+                filterProjects(s.toString());
+            }
+
+            @Override
+            public void afterTextChanged(android.text.Editable s) {}
+        });
         rvProjects = findViewById(R.id.rvProjects);
         rvProjects.setLayoutManager(new LinearLayoutManager(this));
 
@@ -61,12 +77,10 @@ public class MainActivity extends AppCompatActivity {
         List<Project> freshList = new ArrayList<>();
         SQLiteDatabase db = dbHelper.getReadableDatabase();
 
-        // Query hết tất cả Project
         Cursor cursor = db.query(DatabaseHelper.TABLE_PROJECTS, null, null, null, null, null, null);
 
         if (cursor != null) {
             while (cursor.moveToNext()) {
-                // Rút trọn bộ 10 cột từ Database lên
                 String id = cursor.getString(cursor.getColumnIndexOrThrow(DatabaseHelper.COLUMN_PROJECT_ID));
                 String name = cursor.getString(cursor.getColumnIndexOrThrow(DatabaseHelper.COLUMN_PROJECT_NAME));
                 String description = cursor.getString(cursor.getColumnIndexOrThrow(DatabaseHelper.COLUMN_PROJECT_DESC));
@@ -82,23 +96,22 @@ public class MainActivity extends AppCompatActivity {
 
                 double spent = dbHelper.getTotalExpenseForProject(id);
                 p.setSpentAmount(spent);
-
-                freshList.add(new Project(
-                        id,
-                        name,
-                        description,
-                        startDate,
-                        endDate,
-                        manager,
-                        status,
-                        budget,
-                        specialReq,
-                        clientInfo
-                ));
+                freshList.add(p);
             }
             cursor.close();
         }
+        allProjectsList.clear();
+        allProjectsList.addAll(freshList);
+        adapter.updateData(allProjectsList);
+    }
+    private void filterProjects(String text) {
+        List<Project> filteredList = new ArrayList<>();
 
-        adapter.updateData(freshList);
+        for (Project project : allProjectsList) {
+            if (project.getName().toLowerCase().contains(text.toLowerCase())) {
+                filteredList.add(project);
+            }
+        }
+        adapter.updateData(filteredList);
     }
 }

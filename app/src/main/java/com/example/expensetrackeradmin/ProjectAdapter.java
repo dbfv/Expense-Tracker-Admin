@@ -61,7 +61,7 @@ public class ProjectAdapter extends RecyclerView.Adapter<ProjectAdapter.ProjectV
             holder.chipStatus.setTextColor(androidx.core.content.ContextCompat.getColor(context, R.color.status_on_hold_text));
         }
 
-        DecimalFormat formatter = new DecimalFormat("$#,###.00");
+        DecimalFormat formatter = new DecimalFormat("$#,##0.00");
         holder.tvBudget.setText(formatter.format(project.getBudget()));
 
         double budget = project.getBudget();
@@ -82,6 +82,11 @@ public class ProjectAdapter extends RecyclerView.Adapter<ProjectAdapter.ProjectV
         } else {
             holder.tvProgressText.setTextColor(android.graphics.Color.parseColor("#79747E")); // Màu outline
         }
+        holder.itemView.setOnClickListener(v -> {
+            android.content.Intent intent = new android.content.Intent(context, ProjectDetailsActivity.class);
+            intent.putExtra("PROJECT_ID", project.getProjectId());
+            context.startActivity(intent);
+        });
     }
 
     @Override

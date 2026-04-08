@@ -1,8 +1,11 @@
 package com.example.expensetrackeradmin;
 
 import android.content.Context;
+import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteOpenHelper;
+
+import models.Project;
 
 public class DatabaseHelper extends SQLiteOpenHelper {
 
@@ -130,5 +133,31 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         cursor.close();
 
         return totalSpent;
+    }
+
+    public Project getProjectById(String projectId) {
+        SQLiteDatabase db = this.getReadableDatabase();
+        Project project = null;
+
+        Cursor cursor = db.query(TABLE_PROJECTS, null, COLUMN_PROJECT_ID + "=?", new String[]{projectId}, null, null, null);
+
+        if (cursor != null && cursor.moveToFirst()) {
+            String id = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_PROJECT_ID));
+            String name = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_PROJECT_NAME));
+            String desc = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_PROJECT_DESC));
+            String start = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_PROJECT_START_DATE));
+            String end = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_PROJECT_END_DATE));
+            String manager = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_PROJECT_MANAGER));
+            String status = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_PROJECT_STATUS));
+            double budget = cursor.getDouble(cursor.getColumnIndexOrThrow(COLUMN_PROJECT_BUDGET));
+            String special = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_PROJECT_SPECIAL_REQ));
+            String client = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_PROJECT_CLIENT));
+
+            project = new Project(id, name, desc, start, end, manager, status, budget, special, client);
+            project.setSpentAmount(getTotalExpenseForProject(id));
+
+            cursor.close();
+        }
+        return project;
     }
 }
