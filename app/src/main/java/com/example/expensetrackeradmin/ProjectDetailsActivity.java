@@ -14,23 +14,31 @@ import android.widget.Toast;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
 import androidx.core.content.ContextCompat;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
 
 import com.google.android.material.chip.Chip;
 import com.google.android.material.floatingactionbutton.ExtendedFloatingActionButton;
 import com.google.android.material.textfield.TextInputEditText;
 
 import java.text.DecimalFormat;
+import java.util.ArrayList;
+import java.util.List;
 
+import models.Expense;
 import models.Project;
 
 public class ProjectDetailsActivity extends AppCompatActivity {
 
-    private TextView tvName, tvBudget, tvManager, tvSpent, tvProgressPct;
+    private TextView tvName, tvBudget, tvManager, tvSpent, tvProgressPct, tvNoExpenses;
     private Chip chipStatus, chipId;
     private ProgressBar pbProgress;
     private ExtendedFloatingActionButton fabAddExpense;
     private DatabaseHelper dbHelper;
     private String projectId;
+    private RecyclerView rvExpenses;
+    private ExpenseAdapter expenseAdapter;
+    private List<Expense> expenseList;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -74,9 +82,23 @@ public class ProjectDetailsActivity extends AppCompatActivity {
         super.onResume();
         if (projectId != null) {
             loadProjectDetails();
+            loadExpenses();
         } else {
             Toast.makeText(this, "Project not found!", Toast.LENGTH_SHORT).show();
             finish();
+        }
+    }
+
+    private void loadExpenses() {
+        List<Expense> expenses = dbHelper.getExpensesByProjectId(projectId);
+        expenseAdapter.updateData(expenses);
+        
+        if (expenses.isEmpty()) {
+            tvNoExpenses.setVisibility(android.view.View.VISIBLE);
+            rvExpenses.setVisibility(android.view.View.GONE);
+        } else {
+            tvNoExpenses.setVisibility(android.view.View.GONE);
+            rvExpenses.setVisibility(android.view.View.VISIBLE);
         }
     }
 
@@ -90,6 +112,17 @@ public class ProjectDetailsActivity extends AppCompatActivity {
         tvProgressPct = findViewById(R.id.tvDetProgressPct);
         pbProgress = findViewById(R.id.pbDetProgress);
         fabAddExpense = findViewById(R.id.fabAddExpense);
+        tvNoExpenses = findViewById(R.id.tvNoExpenses);
+        
+        rvExpenses = findViewById(R.id.rvExpenses);
+        rvExpenses.setLayoutManager(new LinearLayoutManager(this));
+        expenseList = new ArrayList<>();
+        expenseAdapter = new ExpenseAdapter(expenseList, expense -> {
+            Intent intent = new Intent(ProjectDetailsActivity.this, ExpenseDetailsActivity.class);
+            intent.putExtra("EXPENSE_ID", expense.getExpenseId());
+            startActivity(intent);
+        });
+        rvExpenses.setAdapter(expenseAdapter);
     }
 
     private void loadProjectDetails() {

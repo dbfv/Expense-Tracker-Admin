@@ -234,6 +234,17 @@
                     android:textColor="@color/primary"/>
             </LinearLayout>
 
+            <TextView
+                android:id="@+id/tvNoExpenses"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="No expenses yet. Tap + to add."
+                android:textColor="@color/outline"
+                android:textSize="14sp"
+                android:gravity="center"
+                android:padding="24dp"
+                android:visibility="gone"/>
+
             <androidx.recyclerview.widget.RecyclerView
                 android:id="@+id/rvExpenses"
                 android:layout_width="match_parent"

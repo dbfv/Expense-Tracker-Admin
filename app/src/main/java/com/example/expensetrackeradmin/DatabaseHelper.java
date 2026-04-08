@@ -5,6 +5,8 @@ import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteOpenHelper;
 import android.content.ContentValues;
+import java.util.ArrayList;
+import java.util.List;
 
 import models.Project;
 import models.Expense;
@@ -197,5 +199,82 @@ public class DatabaseHelper extends SQLiteOpenHelper {
 
         long result = db.insert(TABLE_EXPENSES, null, values);
         return result != -1;
+    }
+
+    public Expense getExpenseById(String expenseId) {
+        SQLiteDatabase db = this.getReadableDatabase();
+        Expense expense = null;
+
+        Cursor cursor = db.query(TABLE_EXPENSES, null, COLUMN_EXPENSE_ID + "=?", new String[]{expenseId}, null, null, null);
+
+        if (cursor != null && cursor.moveToFirst()) {
+            expense = new Expense(
+                cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_EXPENSE_ID)),
+                cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_EXP_PROJECT_ID)),
+                cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_EXPENSE_DATE)),
+                cursor.getDouble(cursor.getColumnIndexOrThrow(COLUMN_EXPENSE_AMOUNT)),
+                cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_EXPENSE_CURRENCY)),
+                cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_EXPENSE_TYPE)),
+                cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_EXPENSE_PAYMENT_METHOD)),
+                cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_EXPENSE_CLAIMANT)),
+                cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_EXPENSE_STATUS)),
+                cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_EXPENSE_DESC)),
+                cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_EXPENSE_LOCATION))
+            );
+            cursor.close();
+        }
+        return expense;
+    }
+
+    public List<Expense> getExpensesByProjectId(String projectId) {
+        List<Expense> expenses = new ArrayList<>();
+        SQLiteDatabase db = this.getReadableDatabase();
+
+        Cursor cursor = db.query(TABLE_EXPENSES, null, COLUMN_EXP_PROJECT_ID + "=?",
+                new String[]{projectId}, null, null, COLUMN_EXPENSE_DATE + " DESC");
+
+        if (cursor != null) {
+            while (cursor.moveToNext()) {
+                Expense expense = new Expense(
+                    cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_EXPENSE_ID)),
+                    cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_EXP_PROJECT_ID)),
+                    cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_EXPENSE_DATE)),
+                    cursor.getDouble(cursor.getColumnIndexOrThrow(COLUMN_EXPENSE_AMOUNT)),
+                    cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_EXPENSE_CURRENCY)),
+                    cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_EXPENSE_TYPE)),
+                    cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_EXPENSE_PAYMENT_METHOD)),
+                    cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_EXPENSE_CLAIMANT)),
+                    cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_EXPENSE_STATUS)),
+                    cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_EXPENSE_DESC)),
+                    cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_EXPENSE_LOCATION))
+                );
+                expenses.add(expense);
+            }
+            cursor.close();
+        }
+        return expenses;
+    }
+
+    public boolean updateExpense(Expense expense) {
+        SQLiteDatabase db = this.getWritableDatabase();
+        ContentValues values = new ContentValues();
+        values.put(COLUMN_EXPENSE_DATE, expense.getDate());
+        values.put(COLUMN_EXPENSE_AMOUNT, expense.getAmount());
+        values.put(COLUMN_EXPENSE_CURRENCY, expense.getCurrency());
+        values.put(COLUMN_EXPENSE_TYPE, expense.getType());
+        values.put(COLUMN_EXPENSE_PAYMENT_METHOD, expense.getPaymentMethod());
+        values.put(COLUMN_EXPENSE_CLAIMANT, expense.getClaimant());
+        values.put(COLUMN_EXPENSE_STATUS, expense.getStatus());
+        values.put(COLUMN_EXPENSE_DESC, expense.getDescription());
+        values.put(COLUMN_EXPENSE_LOCATION, expense.getLocation());
+
+        int rowsUpdated = db.update(TABLE_EXPENSES, values, COLUMN_EXPENSE_ID + "=?", new String[]{expense.getExpenseId()});
+        return rowsUpdated > 0;
+    }
+
+    public boolean deleteExpense(String expenseId) {
+        SQLiteDatabase db = this.getWritableDatabase();
+        int rowsDeleted = db.delete(TABLE_EXPENSES, COLUMN_EXPENSE_ID + "=?", new String[]{expenseId});
+        return rowsDeleted > 0;
     }
 }

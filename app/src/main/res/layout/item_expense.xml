@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="utf-8"?>
+<com.google.android.material.card.MaterialCardView
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginBottom="12dp"
+    app:cardBackgroundColor="@color/white"
+    app:cardCornerRadius="12dp"
+    app:cardElevation="1dp"
+    app:strokeWidth="1dp"
+    app:strokeColor="@color/outline_variant">
+
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:padding="16dp">
+
+        <TextView
+            android:id="@+id/tvExpenseType"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Travel"
+            android:textColor="@color/primary"
+            android:textSize="12sp"
+            android:textStyle="bold"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent" />
+
+        <TextView
+            android:id="@+id/tvExpenseDate"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="2024-01-15"
+            android:textColor="@color/outline"
+            android:textSize="12sp"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toTopOf="parent" />
+
+        <TextView
+            android:id="@+id/tvExpenseAmount"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="$1,250.00"
+            android:textColor="@color/on_surface"
+            android:textSize="20sp"
+            android:textStyle="bold"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/tvExpenseType" />
+
+        <TextView
+            android:id="@+id/tvExpenseCurrency"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="4dp"
+            android:text="USD"
+            android:textColor="@color/outline"
+            android:textSize="12sp"
+            app:layout_constraintBottom_toBottomOf="@id/tvExpenseAmount"
+            app:layout_constraintStart_toEndOf="@id/tvExpenseAmount" />
+
+        <com.google.android.material.chip.Chip
+            android:id="@+id/chipExpenseStatus"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="PENDING"
+            android:textSize="10sp"
+            android:textStyle="bold"
+            app:chipBackgroundColor="@color/status_on_hold_bg"
+            app:chipCornerRadius="12dp"
+            app:chipMinHeight="24dp"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/tvExpenseDate"
+            android:layout_marginTop="4dp" />
+
+        <TextView
+            android:id="@+id/tvExpenseClaimant"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:drawableStart="@android:drawable/ic_menu_myplaces"
+            android:drawablePadding="4dp"
+            android:drawableTint="@color/outline"
+            android:text="Claimant: John Doe"
+            android:textColor="@color/outline"
+            android:textSize="12sp"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toStartOf="@id/chipExpenseStatus"
+            app:layout_constraintTop_toBottomOf="@id/tvExpenseAmount" />
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+</com.google.android.material.card.MaterialCardView>

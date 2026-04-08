@@ -23,6 +23,8 @@ import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
 
+import models.Expense;
+
 public class AddExpenseActivity extends AppCompatActivity {
 
     private TextInputEditText etExpenseDate, etAmount, etDescription, etLocation;
@@ -30,6 +32,8 @@ public class AddExpenseActivity extends AppCompatActivity {
     private Button btnSaveExpense;
     private DatabaseHelper dbHelper;
     private String projectId;
+    private String expenseId;
+    private boolean isEditMode = false;
 
     private final SimpleDateFormat dateFormatter = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault());
 
@@ -40,17 +44,44 @@ public class AddExpenseActivity extends AppCompatActivity {
 
         dbHelper = new DatabaseHelper(this);
         projectId = getIntent().getStringExtra("PROJECT_ID");
+        expenseId = getIntent().getStringExtra("EXPENSE_ID");
 
         initViews();
         setupToolbar();
 
-        etExpenseDate.setText(dateFormatter.format(new Date()));
+        if (expenseId != null && !expenseId.isEmpty()) {
+            isEditMode = true;
+            loadExpenseData(expenseId);
+        } else {
+            etExpenseDate.setText(dateFormatter.format(new Date()));
+        }
+
         etExpenseDate.setOnClickListener(v -> showDatePicker(etExpenseDate));
 
         setupDropdowns();
         loadClaimants();
 
         btnSaveExpense.setOnClickListener(v -> saveExpenseToDatabase());
+    }
+
+    private void loadExpenseData(String expenseId) {
+        Expense expense = dbHelper.getExpenseById(expenseId);
+        if (expense != null) {
+            projectId = expense.getProjectId();
+            etExpenseDate.setText(expense.getDate());
+            etAmount.setText(String.valueOf(expense.getAmount()));
+            etDescription.setText(expense.getDescription());
+            etLocation.setText(expense.getLocation());
+            spCurrency.setText(expense.getCurrency(), false);
+            spExpenseType.setText(expense.getType(), false);
+            spPaymentMethod.setText(expense.getPaymentMethod(), false);
+            spClaimant.setText(expense.getClaimant(), false);
+            spPaymentStatus.setText(expense.getStatus(), false);
+
+            Toolbar toolbar = findViewById(R.id.toolbarAddExpense);
+            toolbar.setTitle("Edit Expense");
+            btnSaveExpense.setText("Update Expense");
+        }
     }
 
     private void initViews() {
@@ -154,28 +185,50 @@ public class AddExpenseActivity extends AppCompatActivity {
             return;
         }
 
-        SQLiteDatabase db = dbHelper.getWritableDatabase();
-        ContentValues values = new ContentValues();
+        if (isEditMode) {
+            Expense expense = new Expense();
+            expense.setExpenseId(expenseId);
+            expense.setProjectId(projectId);
+            expense.setDate(expenseDate);
+            expense.setAmount(amount);
+            expense.setCurrency(currency);
+            expense.setType(expenseType);
+            expense.setPaymentMethod(paymentMethod);
+            expense.setClaimant(claimant);
+            expense.setStatus(paymentStatus);
+            expense.setDescription(description);
+            expense.setLocation(location);
 
-        values.put(DatabaseHelper.COLUMN_EXPENSE_ID, UUID.randomUUID().toString());
-        values.put(DatabaseHelper.COLUMN_EXP_PROJECT_ID, projectId);
-        values.put(DatabaseHelper.COLUMN_EXPENSE_DATE, expenseDate);
-        values.put(DatabaseHelper.COLUMN_EXPENSE_AMOUNT, amount);
-        values.put(DatabaseHelper.COLUMN_EXPENSE_CURRENCY, currency);
-        values.put(DatabaseHelper.COLUMN_EXPENSE_TYPE, expenseType);
-        values.put(DatabaseHelper.COLUMN_EXPENSE_PAYMENT_METHOD, paymentMethod);
-        values.put(DatabaseHelper.COLUMN_EXPENSE_CLAIMANT, claimant);
-        values.put(DatabaseHelper.COLUMN_EXPENSE_STATUS, paymentStatus);
-        values.put(DatabaseHelper.COLUMN_EXPENSE_DESC, description);
-        values.put(DatabaseHelper.COLUMN_EXPENSE_LOCATION, location);
-
-        long newRowId = db.insert(DatabaseHelper.TABLE_EXPENSES, null, values);
-
-        if (newRowId != -1) {
-            Toast.makeText(this, "Expense saved successfully!", Toast.LENGTH_SHORT).show();
-            finish();
+            if (dbHelper.updateExpense(expense)) {
+                Toast.makeText(this, "Expense updated successfully!", Toast.LENGTH_SHORT).show();
+                finish();
+            } else {
+                Toast.makeText(this, "Error updating expense.", Toast.LENGTH_SHORT).show();
+            }
         } else {
-            Toast.makeText(this, "Error saving expense.", Toast.LENGTH_SHORT).show();
+            SQLiteDatabase db = dbHelper.getWritableDatabase();
+            ContentValues values = new ContentValues();
+
+            values.put(DatabaseHelper.COLUMN_EXPENSE_ID, UUID.randomUUID().toString());
+            values.put(DatabaseHelper.COLUMN_EXP_PROJECT_ID, projectId);
+            values.put(DatabaseHelper.COLUMN_EXPENSE_DATE, expenseDate);
+            values.put(DatabaseHelper.COLUMN_EXPENSE_AMOUNT, amount);
+            values.put(DatabaseHelper.COLUMN_EXPENSE_CURRENCY, currency);
+            values.put(DatabaseHelper.COLUMN_EXPENSE_TYPE, expenseType);
+            values.put(DatabaseHelper.COLUMN_EXPENSE_PAYMENT_METHOD, paymentMethod);
+            values.put(DatabaseHelper.COLUMN_EXPENSE_CLAIMANT, claimant);
+            values.put(DatabaseHelper.COLUMN_EXPENSE_STATUS, paymentStatus);
+            values.put(DatabaseHelper.COLUMN_EXPENSE_DESC, description);
+            values.put(DatabaseHelper.COLUMN_EXPENSE_LOCATION, location);
+
+            long newRowId = db.insert(DatabaseHelper.TABLE_EXPENSES, null, values);
+
+            if (newRowId != -1) {
+                Toast.makeText(this, "Expense saved successfully!", Toast.LENGTH_SHORT).show();
+                finish();
+            } else {
+                Toast.makeText(this, "Error saving expense.", Toast.LENGTH_SHORT).show();
+            }
         }
     }
 }
