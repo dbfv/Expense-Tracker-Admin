@@ -81,6 +81,8 @@ public class MainActivity extends AppCompatActivity {
             while (cursor.moveToNext()) {
                 String id = cursor.getString(cursor.getColumnIndexOrThrow(DatabaseHelper.COLUMN_PROJECT_ID));
                 String name = cursor.getString(cursor.getColumnIndexOrThrow(DatabaseHelper.COLUMN_PROJECT_NAME));
+                String password = cursor.getString(cursor.getColumnIndexOrThrow(DatabaseHelper.COLUMN_PROJECT_PASSWORD));
+                String passwordHash = cursor.getString(cursor.getColumnIndexOrThrow(DatabaseHelper.COLUMN_PROJECT_PASSWORD_HASH));
                 String description = cursor.getString(cursor.getColumnIndexOrThrow(DatabaseHelper.COLUMN_PROJECT_DESC));
                 String startDate = cursor.getString(cursor.getColumnIndexOrThrow(DatabaseHelper.COLUMN_PROJECT_START_DATE));
                 String endDate = cursor.getString(cursor.getColumnIndexOrThrow(DatabaseHelper.COLUMN_PROJECT_END_DATE));
@@ -90,7 +92,7 @@ public class MainActivity extends AppCompatActivity {
                 String specialReq = cursor.getString(cursor.getColumnIndexOrThrow(DatabaseHelper.COLUMN_PROJECT_SPECIAL_REQ));
                 String clientInfo = cursor.getString(cursor.getColumnIndexOrThrow(DatabaseHelper.COLUMN_PROJECT_CLIENT));
 
-                Project p = new Project(id, name, description, startDate, endDate, manager, status, budget, specialReq, clientInfo);
+                Project p = new Project(id, name, password, passwordHash, description, startDate, endDate, manager, status, budget, specialReq, clientInfo);
 
                 double spent = dbHelper.getTotalExpenseForProject(id);
                 p.setSpentAmount(spent);

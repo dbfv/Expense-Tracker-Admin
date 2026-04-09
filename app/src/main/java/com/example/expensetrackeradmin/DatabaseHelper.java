@@ -10,13 +10,14 @@ import java.util.List;
 
 import models.Project;
 import models.Expense;
+import models.Employee;
 
 public class DatabaseHelper extends SQLiteOpenHelper {
 
     private void insertDefaultAdmins(SQLiteDatabase db) {
         String[][] defaultAdmins = {
-                {"The dbfv", "GCH230163", "quanbfclan@gmail.com"},
-                {"dbfv", "GCH230999", "quanldgch230163@gmail.com"},
+                {"The dbfv", "GCH230163", "quanbfclan@gmail.com", "admin"},
+                {"dbfv", "GCH230999", "quanldgch230163@gmail.com", "admin"},
         };
 
         for (String[] admin : defaultAdmins) {
@@ -24,6 +25,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
             values.put(COLUMN_EMP_NAME, admin[0]);
             values.put(COLUMN_EMP_CODE, admin[1]);
             values.put(COLUMN_EMP_EMAIL, admin[2]);
+            values.put(COLUMN_EMP_ROLE, admin[3]);
 
             db.insert(TABLE_EMPLOYEES, null, values);
         }
@@ -31,7 +33,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
     }
 
     private static final String DATABASE_NAME = "ExpenseTracker.db";
-    private static final int DATABASE_VERSION = 2;
+    private static final int DATABASE_VERSION = 4;
 
     // Table names
     public static final String TABLE_PROJECTS = "projects";
@@ -41,6 +43,8 @@ public class DatabaseHelper extends SQLiteOpenHelper {
     // Projects Table - Columns
     public static final String COLUMN_PROJECT_ID = "project_id";
     public static final String COLUMN_PROJECT_NAME = "name";
+    public static final String COLUMN_PROJECT_PASSWORD = "password";
+    public static final String COLUMN_PROJECT_PASSWORD_HASH = "password_hash";
     public static final String COLUMN_PROJECT_DESC = "description";
     public static final String COLUMN_PROJECT_START_DATE = "start_date";
     public static final String COLUMN_PROJECT_END_DATE = "end_date";
@@ -68,11 +72,14 @@ public class DatabaseHelper extends SQLiteOpenHelper {
     public static final String COLUMN_EMP_NAME = "name";
     public static final String COLUMN_EMP_CODE = "code";
     public static final String COLUMN_EMP_EMAIL = "email";
+    public static final String COLUMN_EMP_ROLE = "role";
 
     // SQL Statements
     private static final String CREATE_TABLE_PROJECTS = "CREATE TABLE " + TABLE_PROJECTS + " ("
             + COLUMN_PROJECT_ID + " TEXT PRIMARY KEY, "
             + COLUMN_PROJECT_NAME + " TEXT NOT NULL, "
+            + COLUMN_PROJECT_PASSWORD + " TEXT NOT NULL, "
+            + COLUMN_PROJECT_PASSWORD_HASH + " TEXT NOT NULL, "
             + COLUMN_PROJECT_DESC + " TEXT NOT NULL, "
             + COLUMN_PROJECT_START_DATE + " TEXT NOT NULL, "
             + COLUMN_PROJECT_END_DATE + " TEXT NOT NULL, "
@@ -101,7 +108,8 @@ public class DatabaseHelper extends SQLiteOpenHelper {
             + COLUMN_EMP_ID + " INTEGER PRIMARY KEY AUTOINCREMENT, "
             + COLUMN_EMP_NAME + " TEXT NOT NULL, "
             + COLUMN_EMP_CODE + " TEXT UNIQUE NOT NULL, "
-            + COLUMN_EMP_EMAIL + " TEXT UNIQUE NOT NULL"
+            + COLUMN_EMP_EMAIL + " TEXT UNIQUE NOT NULL, "
+            + COLUMN_EMP_ROLE + " TEXT NOT NULL DEFAULT 'employee'"
             + ");";
 
     public DatabaseHelper(Context context) {
@@ -119,10 +127,42 @@ public class DatabaseHelper extends SQLiteOpenHelper {
 
     @Override
     public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
-        db.execSQL("DROP TABLE IF EXISTS " + TABLE_EXPENSES);
-        db.execSQL("DROP TABLE IF EXISTS " + TABLE_PROJECTS);
-        db.execSQL("DROP TABLE IF EXISTS " + TABLE_EMPLOYEES);
-        onCreate(db);
+        if (oldVersion < 3) {
+            try {
+                db.execSQL("ALTER TABLE " + TABLE_EMPLOYEES + " ADD COLUMN " + COLUMN_EMP_ROLE + " TEXT NOT NULL DEFAULT 'employee'");
+            } catch (Exception ignored) {
+            }
+
+            db.execSQL("UPDATE " + TABLE_EMPLOYEES
+                    + " SET " + COLUMN_EMP_ROLE + " = 'admin'"
+                    + " WHERE " + COLUMN_EMP_CODE + " IN ('GCH230163','GCH230999')");
+
+                db.execSQL("UPDATE " + TABLE_EXPENSES
+                    + " SET " + COLUMN_EXPENSE_CLAIMANT + " = ("
+                    + "SELECT e." + COLUMN_EMP_ID + " FROM " + TABLE_EMPLOYEES + " e"
+                    + " WHERE e." + COLUMN_EMP_CODE + " = " + TABLE_EXPENSES + "." + COLUMN_EXPENSE_CLAIMANT + " COLLATE NOCASE"
+                    + " LIMIT 1)"
+                    + " WHERE EXISTS ("
+                    + "SELECT 1 FROM " + TABLE_EMPLOYEES + " e"
+                    + " WHERE e." + COLUMN_EMP_CODE + " = " + TABLE_EXPENSES + "." + COLUMN_EXPENSE_CLAIMANT + " COLLATE NOCASE)");
+
+                db.execSQL("UPDATE " + TABLE_EXPENSES
+                    + " SET " + COLUMN_EXPENSE_CLAIMANT + " = ("
+                    + "SELECT e." + COLUMN_EMP_ID + " FROM " + TABLE_EMPLOYEES + " e"
+                    + " WHERE e." + COLUMN_EMP_NAME + " = " + TABLE_EXPENSES + "." + COLUMN_EXPENSE_CLAIMANT
+                    + " LIMIT 1)"
+                    + " WHERE EXISTS ("
+                    + "SELECT 1 FROM " + TABLE_EMPLOYEES + " e"
+                    + " WHERE e." + COLUMN_EMP_NAME + " = " + TABLE_EXPENSES + "." + COLUMN_EXPENSE_CLAIMANT + ")");
+        }
+        
+        if (oldVersion < 4) {
+            try {
+                db.execSQL("ALTER TABLE " + TABLE_PROJECTS + " ADD COLUMN " + COLUMN_PROJECT_PASSWORD + " TEXT NOT NULL DEFAULT ''");
+                db.execSQL("ALTER TABLE " + TABLE_PROJECTS + " ADD COLUMN " + COLUMN_PROJECT_PASSWORD_HASH + " TEXT NOT NULL DEFAULT ''");
+            } catch (Exception ignored) {
+            }
+        }
     }
     public double getTotalExpenseForProject(String projectId) {
         SQLiteDatabase db = this.getReadableDatabase();
@@ -148,6 +188,8 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         if (cursor != null && cursor.moveToFirst()) {
             String id = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_PROJECT_ID));
             String name = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_PROJECT_NAME));
+            String password = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_PROJECT_PASSWORD));
+            String passwordHash = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_PROJECT_PASSWORD_HASH));
             String desc = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_PROJECT_DESC));
             String start = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_PROJECT_START_DATE));
             String end = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_PROJECT_END_DATE));
@@ -157,7 +199,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
             String special = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_PROJECT_SPECIAL_REQ));
             String client = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_PROJECT_CLIENT));
 
-            project = new Project(id, name, desc, start, end, manager, status, budget, special, client);
+            project = new Project(id, name, password, passwordHash, desc, start, end, manager, status, budget, special, client);
             project.setSpentAmount(getTotalExpenseForProject(id));
 
             cursor.close();
@@ -182,6 +224,20 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         return name;
     }
 
+    public boolean verifyProjectPassword(String projectId, String password) {
+        SQLiteDatabase db = this.getReadableDatabase();
+        String hashedPassword = MD5Util.md5(password);
+        Cursor cursor = db.query(TABLE_PROJECTS, new String[]{COLUMN_PROJECT_PASSWORD}, 
+                COLUMN_PROJECT_ID + "=?", new String[]{projectId}, null, null, null);
+        boolean isValid = false;
+        if (cursor != null && cursor.moveToFirst()) {
+            String storedPassword = cursor.getString(0);
+            isValid = storedPassword != null && storedPassword.equals(hashedPassword);
+            cursor.close();
+        }
+        return isValid;
+    }
+
     public boolean insertExpense(Expense expense) {
         SQLiteDatabase db = this.getWritableDatabase();
         ContentValues values = new ContentValues();
@@ -201,6 +257,124 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         return result != -1;
     }
 
+    public Employee getEmployeeByCode(String employeeCode) {
+        if (employeeCode == null || employeeCode.trim().isEmpty()) {
+            return null;
+        }
+
+        SQLiteDatabase db = this.getReadableDatabase();
+        Employee employee = null;
+
+        Cursor cursor = db.query(
+                TABLE_EMPLOYEES,
+                new String[]{COLUMN_EMP_ID, COLUMN_EMP_NAME, COLUMN_EMP_CODE, COLUMN_EMP_EMAIL, COLUMN_EMP_ROLE},
+            COLUMN_EMP_CODE + " = ? COLLATE NOCASE",
+                new String[]{employeeCode.trim()},
+                null,
+                null,
+                null
+        );
+
+        if (cursor != null) {
+            if (cursor.moveToFirst()) {
+            employee = new Employee(
+                cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_EMP_ID)),
+                cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_EMP_NAME)),
+                cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_EMP_CODE)),
+                cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_EMP_EMAIL)),
+                cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_EMP_ROLE))
+            );
+            }
+            cursor.close();
+        }
+
+        return employee;
+    }
+
+    public Employee getEmployeeById(String employeeId) {
+        if (employeeId == null || employeeId.trim().isEmpty()) {
+            return null;
+        }
+
+        SQLiteDatabase db = this.getReadableDatabase();
+        Employee employee = null;
+
+        Cursor cursor = db.query(
+                TABLE_EMPLOYEES,
+                new String[]{COLUMN_EMP_ID, COLUMN_EMP_NAME, COLUMN_EMP_CODE, COLUMN_EMP_EMAIL, COLUMN_EMP_ROLE},
+                COLUMN_EMP_ID + "=?",
+                new String[]{employeeId.trim()},
+                null,
+                null,
+                null
+        );
+
+        if (cursor != null) {
+            if (cursor.moveToFirst()) {
+                employee = new Employee(
+                        cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_EMP_ID)),
+                        cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_EMP_NAME)),
+                        cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_EMP_CODE)),
+                        cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_EMP_EMAIL)),
+                        cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_EMP_ROLE))
+                );
+            }
+            cursor.close();
+        }
+
+        return employee;
+    }
+
+    private String formatEmployeeDisplay(Employee employee) {
+        return employee.getName() + " - " + employee.getCode();
+    }
+
+    public String getEmployeeDisplayByClaimantValue(String claimantValue) {
+        if (claimantValue == null || claimantValue.trim().isEmpty()) {
+            return "-";
+        }
+
+        String trimmedValue = claimantValue.trim();
+
+        Employee byId = getEmployeeById(trimmedValue);
+        if (byId != null) {
+            return formatEmployeeDisplay(byId);
+        }
+
+        Employee byCode = getEmployeeByCode(trimmedValue);
+        if (byCode != null) {
+            return formatEmployeeDisplay(byCode);
+        }
+
+        SQLiteDatabase db = this.getReadableDatabase();
+        Cursor cursor = db.query(
+                TABLE_EMPLOYEES,
+                new String[]{COLUMN_EMP_ID, COLUMN_EMP_NAME, COLUMN_EMP_CODE, COLUMN_EMP_EMAIL, COLUMN_EMP_ROLE},
+                COLUMN_EMP_NAME + "=?",
+                new String[]{trimmedValue},
+                null,
+                null,
+                null
+        );
+
+        if (cursor != null) {
+            if (cursor.moveToFirst()) {
+                Employee byName = new Employee(
+                        cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_EMP_ID)),
+                        cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_EMP_NAME)),
+                        cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_EMP_CODE)),
+                        cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_EMP_EMAIL)),
+                        cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_EMP_ROLE))
+                );
+                cursor.close();
+                return formatEmployeeDisplay(byName);
+            }
+            cursor.close();
+        }
+
+        return trimmedValue;
+    }
+
     public Expense getExpenseById(String expenseId) {
         SQLiteDatabase db = this.getReadableDatabase();
         Expense expense = null;
@@ -208,6 +382,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         Cursor cursor = db.query(TABLE_EXPENSES, null, COLUMN_EXPENSE_ID + "=?", new String[]{expenseId}, null, null, null);
 
         if (cursor != null && cursor.moveToFirst()) {
+            String claimantValue = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_EXPENSE_CLAIMANT));
             expense = new Expense(
                 cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_EXPENSE_ID)),
                 cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_EXP_PROJECT_ID)),
@@ -216,11 +391,12 @@ public class DatabaseHelper extends SQLiteOpenHelper {
                 cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_EXPENSE_CURRENCY)),
                 cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_EXPENSE_TYPE)),
                 cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_EXPENSE_PAYMENT_METHOD)),
-                cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_EXPENSE_CLAIMANT)),
+                claimantValue,
                 cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_EXPENSE_STATUS)),
                 cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_EXPENSE_DESC)),
                 cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_EXPENSE_LOCATION))
             );
+            expense.setClaimantDisplay(getEmployeeDisplayByClaimantValue(claimantValue));
             cursor.close();
         }
         return expense;
@@ -235,6 +411,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
 
         if (cursor != null) {
             while (cursor.moveToNext()) {
+                String claimantValue = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_EXPENSE_CLAIMANT));
                 Expense expense = new Expense(
                     cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_EXPENSE_ID)),
                     cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_EXP_PROJECT_ID)),
@@ -243,11 +420,12 @@ public class DatabaseHelper extends SQLiteOpenHelper {
                     cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_EXPENSE_CURRENCY)),
                     cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_EXPENSE_TYPE)),
                     cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_EXPENSE_PAYMENT_METHOD)),
-                    cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_EXPENSE_CLAIMANT)),
+                    claimantValue,
                     cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_EXPENSE_STATUS)),
                     cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_EXPENSE_DESC)),
                     cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_EXPENSE_LOCATION))
                 );
+                expense.setClaimantDisplay(getEmployeeDisplayByClaimantValue(claimantValue));
                 expenses.add(expense);
             }
             cursor.close();

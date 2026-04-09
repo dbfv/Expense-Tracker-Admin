@@ -8,6 +8,7 @@ public class Expense {
     private String type;
     private String paymentMethod;
     private String claimant;
+    private String claimantDisplay;
     private String status;
     private String description;
     private String location;
@@ -26,6 +27,7 @@ public class Expense {
         this.type = type;
         this.paymentMethod = paymentMethod;
         this.claimant = claimant;
+        this.claimantDisplay = claimant;
         this.status = status;
         this.description = description;
         this.location = location;
@@ -56,6 +58,9 @@ public class Expense {
 
     public String getClaimant() { return claimant; }
     public void setClaimant(String claimant) { this.claimant = claimant; }
+
+    public String getClaimantDisplay() { return claimantDisplay; }
+    public void setClaimantDisplay(String claimantDisplay) { this.claimantDisplay = claimantDisplay; }
 
     public String getStatus() { return status; }
     public void setStatus(String status) { this.status = status; }

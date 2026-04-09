@@ -51,7 +51,14 @@ public class ExpenseAdapter extends RecyclerView.Adapter<ExpenseAdapter.ExpenseV
         DecimalFormat formatter = new DecimalFormat("#,##0.00");
         holder.tvExpenseAmount.setText(formatter.format(expense.getAmount()));
         holder.tvExpenseCurrency.setText(expense.getCurrency());
-        holder.tvExpenseClaimant.setText("Claimant: " + expense.getClaimant());
+        String claimantDisplay = expense.getClaimantDisplay();
+        if (claimantDisplay == null || claimantDisplay.trim().isEmpty()) {
+            claimantDisplay = expense.getClaimant();
+        }
+        if (claimantDisplay == null || claimantDisplay.trim().isEmpty()) {
+            claimantDisplay = "-";
+        }
+        holder.tvExpenseClaimant.setText("Claimant: " + claimantDisplay);
 
         String status = expense.getStatus();
         holder.chipExpenseStatus.setText(status.toUpperCase());

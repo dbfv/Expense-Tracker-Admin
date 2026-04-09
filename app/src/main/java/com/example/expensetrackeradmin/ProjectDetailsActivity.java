@@ -30,7 +30,7 @@ import models.Project;
 
 public class ProjectDetailsActivity extends AppCompatActivity {
 
-    private TextView tvName, tvBudget, tvManager, tvSpent, tvProgressPct, tvNoExpenses;
+    private TextView tvName, tvBudget, tvManager, tvSpent, tvProgressPct, tvNoExpenses, tvProjectPassword;
     private Chip chipStatus, chipId;
     private ProgressBar pbProgress;
     private ExtendedFloatingActionButton fabAddExpense;
@@ -113,6 +113,7 @@ public class ProjectDetailsActivity extends AppCompatActivity {
         pbProgress = findViewById(R.id.pbDetProgress);
         fabAddExpense = findViewById(R.id.fabAddExpense);
         tvNoExpenses = findViewById(R.id.tvNoExpenses);
+        tvProjectPassword = findViewById(R.id.tvProjectPassword);
         
         rvExpenses = findViewById(R.id.rvExpenses);
         rvExpenses.setLayoutManager(new LinearLayoutManager(this));
@@ -134,6 +135,7 @@ public class ProjectDetailsActivity extends AppCompatActivity {
 
             tvName.setText(project.getName());
             tvManager.setText(project.getManager());
+            tvProjectPassword.setText(project.getPassword());
 
             String status = project.getStatus();
             chipStatus.setText(status.toUpperCase());

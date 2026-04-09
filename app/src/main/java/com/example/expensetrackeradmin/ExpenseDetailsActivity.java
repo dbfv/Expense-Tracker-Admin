@@ -91,7 +91,11 @@ public class ExpenseDetailsActivity extends AppCompatActivity {
             tvExpenseCurrency.setText(expense.getCurrency());
 
             tvExpenseDate.setText(expense.getDate());
-            tvClaimant.setText(expense.getClaimant());
+            String claimantDisplay = expense.getClaimantDisplay();
+            if (claimantDisplay == null || claimantDisplay.trim().isEmpty()) {
+                claimantDisplay = expense.getClaimant();
+            }
+            tvClaimant.setText(claimantDisplay != null && !claimantDisplay.trim().isEmpty() ? claimantDisplay : "-");
             tvPaymentMethod.setText(expense.getPaymentMethod());
             
             String location = expense.getLocation();

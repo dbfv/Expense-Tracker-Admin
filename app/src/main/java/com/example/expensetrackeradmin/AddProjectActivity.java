@@ -25,7 +25,7 @@ import java.util.UUID;
 
 public class AddProjectActivity extends AppCompatActivity {
 
-    private TextInputEditText etProjectName, etProjectDesc, etStartDate, etEndDate, etProjectBudget, etSpecialReq, etClientInfo;
+    private TextInputEditText etProjectName, etProjectDesc, etProjectPassword, etStartDate, etEndDate, etProjectBudget, etSpecialReq, etClientInfo;
     private AutoCompleteTextView spManager, spStatus;
     private Button btnSaveProject;
     private DatabaseHelper dbHelper;
@@ -41,6 +41,24 @@ public class AddProjectActivity extends AppCompatActivity {
 
         dbHelper = new DatabaseHelper(this);
         initViews();
+
+        // Tự động viết hoa khi nhập mật khẩu project
+        etProjectPassword.addTextChangedListener(new android.text.TextWatcher() {
+            @Override
+            public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+            @Override
+            public void onTextChanged(CharSequence s, int start, int before, int count) {}
+            @Override
+            public void afterTextChanged(android.text.Editable s) {
+                String upper = s.toString().toUpperCase();
+                if (!upper.equals(s.toString())) {
+                    etProjectPassword.removeTextChangedListener(this);
+                    etProjectPassword.setText(upper);
+                    etProjectPassword.setSelection(upper.length());
+                    etProjectPassword.addTextChangedListener(this);
+                }
+            }
+        });
         setupToolbar();
 
         String projectId = getIntent().getStringExtra("PROJECT_ID");
@@ -99,6 +117,7 @@ public class AddProjectActivity extends AppCompatActivity {
     private void initViews() {
         etProjectName = findViewById(R.id.etProjectName);
         etProjectDesc = findViewById(R.id.etProjectDesc);
+        etProjectPassword = findViewById(R.id.etProjectPassword);
         etStartDate = findViewById(R.id.etStartDate);
         etEndDate = findViewById(R.id.etEndDate);
         etProjectBudget = findViewById(R.id.etProjectBudget);
@@ -183,6 +202,7 @@ public class AddProjectActivity extends AppCompatActivity {
 
     private void saveProjectToDatabase() {
         String name = etProjectName.getText().toString().trim();
+        String password = etProjectPassword.getText().toString().trim();
         String desc = etProjectDesc.getText().toString().trim();
         String startDate = etStartDate.getText().toString().trim();
         String endDate = etEndDate.getText().toString().trim();
@@ -194,6 +214,7 @@ public class AddProjectActivity extends AppCompatActivity {
 
         StringBuilder missingFields = new StringBuilder();
         if (name.isEmpty()) missingFields.append("• Project Name\n");
+        if (password.isEmpty()) missingFields.append("• Project Password\n");
         if (desc.isEmpty()) missingFields.append("• Description\n");
         if (startDate.isEmpty()) missingFields.append("• Start Date\n");
         if (endDate.isEmpty()) missingFields.append("• End Date\n");
@@ -203,6 +224,11 @@ public class AddProjectActivity extends AppCompatActivity {
 
         if (missingFields.length() > 0) {
             Toast.makeText(this, "Please fill required fields:\n" + missingFields.toString(), Toast.LENGTH_LONG).show();
+            return;
+        }
+
+        if (!MD5Util.isValidPassword(password)) {
+            Toast.makeText(this, "Password must be 4 characters with at least 1 letter and 1 number!", Toast.LENGTH_LONG).show();
             return;
         }
 
@@ -230,9 +256,13 @@ public class AddProjectActivity extends AppCompatActivity {
         SQLiteDatabase db = dbHelper.getWritableDatabase();
         ContentValues values = new ContentValues();
 
+        String hashedPassword = MD5Util.md5(password);
+
         if (isEditMode) {
             values.put(DatabaseHelper.COLUMN_PROJECT_ID, editingProjectId);
             values.put(DatabaseHelper.COLUMN_PROJECT_NAME, name);
+            values.put(DatabaseHelper.COLUMN_PROJECT_PASSWORD, password);
+            values.put(DatabaseHelper.COLUMN_PROJECT_PASSWORD_HASH, hashedPassword);
             values.put(DatabaseHelper.COLUMN_PROJECT_DESC, desc);
             values.put(DatabaseHelper.COLUMN_PROJECT_START_DATE, startDate);
             values.put(DatabaseHelper.COLUMN_PROJECT_END_DATE, endDate);
@@ -254,6 +284,8 @@ public class AddProjectActivity extends AppCompatActivity {
         } else {
             values.put(DatabaseHelper.COLUMN_PROJECT_ID, UUID.randomUUID().toString());
             values.put(DatabaseHelper.COLUMN_PROJECT_NAME, name);
+            values.put(DatabaseHelper.COLUMN_PROJECT_PASSWORD, password);
+            values.put(DatabaseHelper.COLUMN_PROJECT_PASSWORD_HASH, hashedPassword);
             values.put(DatabaseHelper.COLUMN_PROJECT_DESC, desc);
             values.put(DatabaseHelper.COLUMN_PROJECT_START_DATE, startDate);
             values.put(DatabaseHelper.COLUMN_PROJECT_END_DATE, endDate);

@@ -1,13 +1,14 @@
 package com.example.expensetrackeradmin;
 
 import android.app.DatePickerDialog;
-import android.content.ContentValues;
-import android.database.Cursor;
-import android.database.sqlite.SQLiteDatabase;
 import android.os.Bundle;
+import android.text.Editable;
+import android.text.TextWatcher;
+import android.view.View;
 import android.widget.ArrayAdapter;
 import android.widget.AutoCompleteTextView;
 import android.widget.Button;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
@@ -16,23 +17,24 @@ import androidx.appcompat.widget.Toolbar;
 import com.google.android.material.textfield.TextInputEditText;
 
 import java.text.SimpleDateFormat;
-import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
-import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
 
+import models.Employee;
 import models.Expense;
 
 public class AddExpenseActivity extends AppCompatActivity {
 
-    private TextInputEditText etExpenseDate, etAmount, etDescription, etLocation;
-    private AutoCompleteTextView spCurrency, spExpenseType, spPaymentMethod, spClaimant, spPaymentStatus;
+    private TextInputEditText etExpenseDate, etAmount, etDescription, etLocation, etClaimantCode;
+    private AutoCompleteTextView spCurrency, spExpenseType, spPaymentMethod, spPaymentStatus;
+    private TextView tvClaimantDisplay;
     private Button btnSaveExpense;
     private DatabaseHelper dbHelper;
     private String projectId;
     private String expenseId;
+    private String selectedClaimantId;
     private boolean isEditMode = false;
 
     private final SimpleDateFormat dateFormatter = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault());
@@ -48,6 +50,39 @@ public class AddExpenseActivity extends AppCompatActivity {
 
         initViews();
         setupToolbar();
+        setupDropdowns();
+        setupClaimantCodeLookup();
+
+        // Format số tiền khi nhập
+        etAmount.addTextChangedListener(new TextWatcher() {
+            private String current = "";
+            @Override
+            public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+            @Override
+            public void onTextChanged(CharSequence s, int start, int before, int count) {}
+            @Override
+            public void afterTextChanged(Editable s) {
+                if (!s.toString().equals(current)) {
+                    etAmount.removeTextChangedListener(this);
+                    String cleanString = s.toString().replaceAll("[.,]", "");
+                    if (!cleanString.isEmpty()) {
+                        try {
+                            long parsed = Long.parseLong(cleanString);
+                            String formatted = String.format(Locale.getDefault(), "%,d", parsed).replace(",", ".");
+                            current = formatted;
+                            etAmount.setText(formatted);
+                            etAmount.setSelection(formatted.length());
+                        } catch (NumberFormatException e) {
+                            // ignore
+                        }
+                    } else {
+                        current = "";
+                        etAmount.setText("");
+                    }
+                    etAmount.addTextChangedListener(this);
+                }
+            }
+        });
 
         if (expenseId != null && !expenseId.isEmpty()) {
             isEditMode = true;
@@ -57,9 +92,6 @@ public class AddExpenseActivity extends AppCompatActivity {
         }
 
         etExpenseDate.setOnClickListener(v -> showDatePicker(etExpenseDate));
-
-        setupDropdowns();
-        loadClaimants();
 
         btnSaveExpense.setOnClickListener(v -> saveExpenseToDatabase());
     }
@@ -75,8 +107,25 @@ public class AddExpenseActivity extends AppCompatActivity {
             spCurrency.setText(expense.getCurrency(), false);
             spExpenseType.setText(expense.getType(), false);
             spPaymentMethod.setText(expense.getPaymentMethod(), false);
-            spClaimant.setText(expense.getClaimant(), false);
             spPaymentStatus.setText(expense.getStatus(), false);
+
+            Employee claimant = dbHelper.getEmployeeById(expense.getClaimant());
+            if (claimant != null) {
+                selectedClaimantId = claimant.getId();
+                etClaimantCode.setText(claimant.getCode());
+                tvClaimantDisplay.setText(claimant.getName() + " - " + claimant.getCode());
+                tvClaimantDisplay.setVisibility(View.VISIBLE);
+            } else {
+                selectedClaimantId = null;
+                etClaimantCode.setText(expense.getClaimant());
+                String claimantDisplay = expense.getClaimantDisplay();
+                if (claimantDisplay != null && !claimantDisplay.trim().isEmpty()) {
+                    tvClaimantDisplay.setText(claimantDisplay);
+                    tvClaimantDisplay.setVisibility(View.VISIBLE);
+                } else {
+                    tvClaimantDisplay.setVisibility(View.GONE);
+                }
+            }
 
             Toolbar toolbar = findViewById(R.id.toolbarAddExpense);
             toolbar.setTitle("Edit Expense");
@@ -89,10 +138,11 @@ public class AddExpenseActivity extends AppCompatActivity {
         etAmount = findViewById(R.id.etAmount);
         etDescription = findViewById(R.id.etDescription);
         etLocation = findViewById(R.id.etLocation);
+        etClaimantCode = findViewById(R.id.etClaimantCode);
+        tvClaimantDisplay = findViewById(R.id.tvClaimantDisplay);
         spCurrency = findViewById(R.id.spCurrency);
         spExpenseType = findViewById(R.id.spExpenseType);
         spPaymentMethod = findViewById(R.id.spPaymentMethod);
-        spClaimant = findViewById(R.id.spClaimant);
         spPaymentStatus = findViewById(R.id.spPaymentStatus);
         btnSaveExpense = findViewById(R.id.btnSaveExpense);
     }
@@ -136,29 +186,55 @@ public class AddExpenseActivity extends AppCompatActivity {
         spPaymentStatus.setAdapter(statusAdapter);
     }
 
-    private void loadClaimants() {
-        List<String> employeeNames = new ArrayList<>();
-        SQLiteDatabase db = dbHelper.getReadableDatabase();
-        Cursor cursor = db.query(DatabaseHelper.TABLE_EMPLOYEES, new String[]{DatabaseHelper.COLUMN_EMP_NAME}, null, null, null, null, null);
-
-        if (cursor != null) {
-            while (cursor.moveToNext()) {
-                employeeNames.add(cursor.getString(0));
+    private void setupClaimantCodeLookup() {
+        etClaimantCode.addTextChangedListener(new TextWatcher() {
+            @Override
+            public void beforeTextChanged(CharSequence s, int start, int count, int after) {
             }
-            cursor.close();
+
+            @Override
+            public void onTextChanged(CharSequence s, int start, int before, int count) {
+            }
+
+            @Override
+            public void afterTextChanged(Editable s) {
+                resolveClaimantByCode(s.toString().trim(), true);
+            }
+        });
+    }
+
+    private Employee resolveClaimantByCode(String claimantCode, boolean showNotFoundMessage) {
+        if (claimantCode == null || claimantCode.trim().isEmpty()) {
+            selectedClaimantId = null;
+            tvClaimantDisplay.setVisibility(View.GONE);
+            return null;
         }
 
-        ArrayAdapter<String> adapter = new ArrayAdapter<>(this, android.R.layout.simple_dropdown_item_1line, employeeNames);
-        spClaimant.setAdapter(adapter);
+        Employee employee = dbHelper.getEmployeeByCode(claimantCode.trim());
+        if (employee == null) {
+            selectedClaimantId = null;
+            if (showNotFoundMessage) {
+                tvClaimantDisplay.setText("No user found for this code.");
+                tvClaimantDisplay.setVisibility(View.VISIBLE);
+            } else {
+                tvClaimantDisplay.setVisibility(View.GONE);
+            }
+            return null;
+        }
+
+        selectedClaimantId = employee.getId();
+        tvClaimantDisplay.setText(employee.getName() + " - " + employee.getCode());
+        tvClaimantDisplay.setVisibility(View.VISIBLE);
+        return employee;
     }
 
     private void saveExpenseToDatabase() {
         String expenseDate = etExpenseDate.getText().toString().trim();
-        String amountStr = etAmount.getText().toString().trim();
+        String amountStr = etAmount.getText().toString().replace(".", "").trim();
         String currency = spCurrency.getText().toString().trim();
         String expenseType = spExpenseType.getText().toString().trim();
         String paymentMethod = spPaymentMethod.getText().toString().trim();
-        String claimant = spClaimant.getText().toString().trim();
+        String claimantCode = etClaimantCode.getText().toString().trim();
         String paymentStatus = spPaymentStatus.getText().toString().trim();
         String description = etDescription.getText().toString().trim();
         String location = etLocation.getText().toString().trim();
@@ -169,7 +245,7 @@ public class AddExpenseActivity extends AppCompatActivity {
         if (currency.isEmpty()) missingFields.append("• Currency\n");
         if (expenseType.isEmpty()) missingFields.append("• Type of Expense\n");
         if (paymentMethod.isEmpty()) missingFields.append("• Payment Method\n");
-        if (claimant.isEmpty()) missingFields.append("• Claimant\n");
+        if (claimantCode.isEmpty()) missingFields.append("• Claimant Code\n");
         if (paymentStatus.isEmpty()) missingFields.append("• Payment Status\n");
 
         if (missingFields.length() > 0) {
@@ -185,19 +261,26 @@ public class AddExpenseActivity extends AppCompatActivity {
             return;
         }
 
+        Employee claimant = resolveClaimantByCode(claimantCode, false);
+        if (claimant == null || selectedClaimantId == null) {
+            Toast.makeText(this, "Invalid claimant code.", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        Expense expense = new Expense();
+        expense.setProjectId(projectId);
+        expense.setDate(expenseDate);
+        expense.setAmount(amount);
+        expense.setCurrency(currency);
+        expense.setType(expenseType);
+        expense.setPaymentMethod(paymentMethod);
+        expense.setClaimant(selectedClaimantId);
+        expense.setStatus(paymentStatus);
+        expense.setDescription(description);
+        expense.setLocation(location);
+
         if (isEditMode) {
-            Expense expense = new Expense();
             expense.setExpenseId(expenseId);
-            expense.setProjectId(projectId);
-            expense.setDate(expenseDate);
-            expense.setAmount(amount);
-            expense.setCurrency(currency);
-            expense.setType(expenseType);
-            expense.setPaymentMethod(paymentMethod);
-            expense.setClaimant(claimant);
-            expense.setStatus(paymentStatus);
-            expense.setDescription(description);
-            expense.setLocation(location);
 
             if (dbHelper.updateExpense(expense)) {
                 Toast.makeText(this, "Expense updated successfully!", Toast.LENGTH_SHORT).show();
@@ -206,24 +289,9 @@ public class AddExpenseActivity extends AppCompatActivity {
                 Toast.makeText(this, "Error updating expense.", Toast.LENGTH_SHORT).show();
             }
         } else {
-            SQLiteDatabase db = dbHelper.getWritableDatabase();
-            ContentValues values = new ContentValues();
+            expense.setExpenseId(UUID.randomUUID().toString());
 
-            values.put(DatabaseHelper.COLUMN_EXPENSE_ID, UUID.randomUUID().toString());
-            values.put(DatabaseHelper.COLUMN_EXP_PROJECT_ID, projectId);
-            values.put(DatabaseHelper.COLUMN_EXPENSE_DATE, expenseDate);
-            values.put(DatabaseHelper.COLUMN_EXPENSE_AMOUNT, amount);
-            values.put(DatabaseHelper.COLUMN_EXPENSE_CURRENCY, currency);
-            values.put(DatabaseHelper.COLUMN_EXPENSE_TYPE, expenseType);
-            values.put(DatabaseHelper.COLUMN_EXPENSE_PAYMENT_METHOD, paymentMethod);
-            values.put(DatabaseHelper.COLUMN_EXPENSE_CLAIMANT, claimant);
-            values.put(DatabaseHelper.COLUMN_EXPENSE_STATUS, paymentStatus);
-            values.put(DatabaseHelper.COLUMN_EXPENSE_DESC, description);
-            values.put(DatabaseHelper.COLUMN_EXPENSE_LOCATION, location);
-
-            long newRowId = db.insert(DatabaseHelper.TABLE_EXPENSES, null, values);
-
-            if (newRowId != -1) {
+            if (dbHelper.insertExpense(expense)) {
                 Toast.makeText(this, "Expense saved successfully!", Toast.LENGTH_SHORT).show();
                 finish();
             } else {

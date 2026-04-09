@@ -2,6 +2,8 @@ package models;
 public class Project {
     private String projectId;
     private String name;
+    private String password;
+    private String passwordHash;
     private String description;
     private String startDate;
     private String endDate;
@@ -15,11 +17,13 @@ public class Project {
     public Project() {
     }
 
-    public Project(String projectId, String name, String description, String startDate,
+    public Project(String projectId, String name, String password, String passwordHash, String description, String startDate,
                    String endDate, String manager, String status, double budget,
                    String specialRequirements, String clientInfo) {
         this.projectId = projectId;
         this.name = name;
+        this.password = password;
+        this.passwordHash = passwordHash;
         this.description = description;
         this.startDate = startDate;
         this.endDate = endDate;
@@ -36,6 +40,12 @@ public class Project {
 
     public String getName() { return name; }
     public void setName(String name) { this.name = name; }
+
+    public String getPassword() { return password; }
+    public void setPassword(String password) { this.password = password; }
+
+    public String getPasswordHash() { return passwordHash; }
+    public void setPasswordHash(String passwordHash) { this.passwordHash = passwordHash; }
 
     public String getDescription() { return description; }
     public void setDescription(String description) { this.description = description; }

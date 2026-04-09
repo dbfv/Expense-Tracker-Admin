@@ -4,17 +4,22 @@ public class Employee {
     private String name;
     private String code;
     private String email;
+    private String role;
 
     // Empty constructor required for some frameworks
     public Employee() {
     }
 
-    // Full constructor
     public Employee(String id, String name, String code, String email) {
+        this(id, name, code, email, "employee");
+    }
+
+    public Employee(String id, String name, String code, String email, String role) {
         this.id = id;
         this.name = name;
         this.code = code;
         this.email = email;
+        this.role = role;
     }
 
     // Getters and Setters
@@ -29,4 +34,7 @@ public class Employee {
 
     public String getEmail() { return email; }
     public void setEmail(String email) { this.email = email; }
+
+    public String getRole() { return role; }
+    public void setRole(String role) { this.role = role; }
 }
