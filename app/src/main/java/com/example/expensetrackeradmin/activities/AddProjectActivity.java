@@ -1,7 +1,6 @@
 package com.example.expensetrackeradmin.activities;
 
 import android.app.DatePickerDialog;
-import android.content.ContentValues;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.os.Bundle;
@@ -25,6 +24,8 @@ import java.util.Locale;
 import java.util.UUID;
 
 import com.example.expensetrackeradmin.helpers.DatabaseHelper;
+import com.example.expensetrackeradmin.helpers.SyncTriggerHelper;
+import com.example.expensetrackeradmin.models.Project;
 import com.example.expensetrackeradmin.utils.MD5Util;
 
 public class AddProjectActivity extends AppCompatActivity {
@@ -39,6 +40,12 @@ public class AddProjectActivity extends AppCompatActivity {
     private boolean isEditMode = false;
 
     @Override
+    protected void onResume() {
+        super.onResume();
+        SyncTriggerHelper.attemptSyncIfOnline(this);
+    }
+
+    @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_add_project);
@@ -46,7 +53,7 @@ public class AddProjectActivity extends AppCompatActivity {
         dbHelper = new DatabaseHelper(this);
         initViews();
 
-        // Tự động viết hoa khi nhập mật khẩu project
+        // Automatically force uppercase while typing the project password.
         etProjectPassword.addTextChangedListener(new android.text.TextWatcher() {
             @Override
             public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
@@ -257,51 +264,37 @@ public class AddProjectActivity extends AppCompatActivity {
         }
 
 
-        SQLiteDatabase db = dbHelper.getWritableDatabase();
-        ContentValues values = new ContentValues();
-
         String hashedPassword = MD5Util.md5(password);
 
+        Project project = new Project();
+        project.setProjectId(isEditMode ? editingProjectId : UUID.randomUUID().toString());
+        project.setName(name);
+        project.setPassword(password);
+        project.setPasswordHash(hashedPassword);
+        project.setDescription(desc);
+        project.setStartDate(startDate);
+        project.setEndDate(endDate);
+        project.setManager(manager);
+        project.setStatus(status);
+        project.setBudget(budget);
+        project.setSpecialRequirements(specialReq);
+        project.setClientInfo(clientInfo);
+
+        boolean success;
+
         if (isEditMode) {
-            values.put(DatabaseHelper.COLUMN_PROJECT_ID, editingProjectId);
-            values.put(DatabaseHelper.COLUMN_PROJECT_NAME, name);
-            values.put(DatabaseHelper.COLUMN_PROJECT_PASSWORD, password);
-            values.put(DatabaseHelper.COLUMN_PROJECT_PASSWORD_HASH, hashedPassword);
-            values.put(DatabaseHelper.COLUMN_PROJECT_DESC, desc);
-            values.put(DatabaseHelper.COLUMN_PROJECT_START_DATE, startDate);
-            values.put(DatabaseHelper.COLUMN_PROJECT_END_DATE, endDate);
-            values.put(DatabaseHelper.COLUMN_PROJECT_MANAGER, manager);
-            values.put(DatabaseHelper.COLUMN_PROJECT_STATUS, status);
-            values.put(DatabaseHelper.COLUMN_PROJECT_BUDGET, budget);
-            values.put(DatabaseHelper.COLUMN_PROJECT_SPECIAL_REQ, specialReq);
-            values.put(DatabaseHelper.COLUMN_PROJECT_CLIENT, clientInfo);
-
-            int rowsUpdated = db.update(DatabaseHelper.TABLE_PROJECTS, values, 
-                    DatabaseHelper.COLUMN_PROJECT_ID + "=?", new String[]{editingProjectId});
-
-            if (rowsUpdated > 0) {
+            success = dbHelper.updateProject(project);
+            if (success) {
+                SyncTriggerHelper.attemptSyncIfOnline(this);
                 Toast.makeText(this, "Project updated successfully!", Toast.LENGTH_SHORT).show();
                 finish();
             } else {
                 Toast.makeText(this, "Error updating project.", Toast.LENGTH_SHORT).show();
             }
         } else {
-            values.put(DatabaseHelper.COLUMN_PROJECT_ID, UUID.randomUUID().toString());
-            values.put(DatabaseHelper.COLUMN_PROJECT_NAME, name);
-            values.put(DatabaseHelper.COLUMN_PROJECT_PASSWORD, password);
-            values.put(DatabaseHelper.COLUMN_PROJECT_PASSWORD_HASH, hashedPassword);
-            values.put(DatabaseHelper.COLUMN_PROJECT_DESC, desc);
-            values.put(DatabaseHelper.COLUMN_PROJECT_START_DATE, startDate);
-            values.put(DatabaseHelper.COLUMN_PROJECT_END_DATE, endDate);
-            values.put(DatabaseHelper.COLUMN_PROJECT_MANAGER, manager);
-            values.put(DatabaseHelper.COLUMN_PROJECT_STATUS, status);
-            values.put(DatabaseHelper.COLUMN_PROJECT_BUDGET, budget);
-            values.put(DatabaseHelper.COLUMN_PROJECT_SPECIAL_REQ, specialReq);
-            values.put(DatabaseHelper.COLUMN_PROJECT_CLIENT, clientInfo);
-
-            long newRowId = db.insert(DatabaseHelper.TABLE_PROJECTS, null, values);
-
-            if (newRowId != -1) {
+            success = dbHelper.insertProject(project);
+            if (success) {
+                SyncTriggerHelper.attemptSyncIfOnline(this);
                 Toast.makeText(this, "Project saved successfully!", Toast.LENGTH_SHORT).show();
                 finish();
             } else {

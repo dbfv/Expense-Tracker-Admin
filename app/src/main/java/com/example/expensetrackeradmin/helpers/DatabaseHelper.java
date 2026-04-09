@@ -38,7 +38,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
     }
 
     private static final String DATABASE_NAME = "ExpenseTracker.db";
-    private static final int DATABASE_VERSION = 5;
+    private static final int DATABASE_VERSION = 6;
 
     // Table names
     public static final String TABLE_PROJECTS = "projects";
@@ -84,6 +84,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
     public static final String COLUMN_EMP_CODE = "code";
     public static final String COLUMN_EMP_EMAIL = "email";
     public static final String COLUMN_EMP_ROLE = "role";
+    public static final String COLUMN_SYNC_STATUS = "sync_status";
 
     // SQL Statements
     private static final String CREATE_TABLE_PROJECTS = "CREATE TABLE " + TABLE_PROJECTS + " ("
@@ -98,7 +99,8 @@ public class DatabaseHelper extends SQLiteOpenHelper {
             + COLUMN_PROJECT_STATUS + " TEXT NOT NULL, "
             + COLUMN_PROJECT_BUDGET + " REAL NOT NULL, "
             + COLUMN_PROJECT_SPECIAL_REQ + " TEXT, "
-            + COLUMN_PROJECT_CLIENT + " TEXT"
+            + COLUMN_PROJECT_CLIENT + " TEXT, "
+            + COLUMN_SYNC_STATUS + " INTEGER NOT NULL DEFAULT 0"
             + ");";
 
     private static final String CREATE_TABLE_EXPENSES = "CREATE TABLE " + TABLE_EXPENSES + " ("
@@ -113,6 +115,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
             + COLUMN_EXPENSE_STATUS + " TEXT NOT NULL, "
             + COLUMN_EXPENSE_DESC + " TEXT, "
             + COLUMN_EXPENSE_LOCATION + " TEXT, "
+                + COLUMN_SYNC_STATUS + " INTEGER NOT NULL DEFAULT 0, "
             + "FOREIGN KEY(" + COLUMN_EXP_PROJECT_ID + ") REFERENCES " + TABLE_PROJECTS + "(" + COLUMN_PROJECT_ID + ") ON DELETE CASCADE"
             + ");";
     private static final String CREATE_TABLE_EMPLOYEES = "CREATE TABLE " + TABLE_EMPLOYEES + " ("
@@ -120,9 +123,9 @@ public class DatabaseHelper extends SQLiteOpenHelper {
             + COLUMN_EMP_NAME + " TEXT NOT NULL, "
             + COLUMN_EMP_CODE + " TEXT UNIQUE NOT NULL, "
             + COLUMN_EMP_EMAIL + " TEXT UNIQUE NOT NULL, "
-            + COLUMN_EMP_ROLE + " TEXT NOT NULL DEFAULT 'employee'"
+                + COLUMN_EMP_ROLE + " TEXT NOT NULL DEFAULT 'employee', "
+                + COLUMN_SYNC_STATUS + " INTEGER NOT NULL DEFAULT 0"
             + ");";
-
         private static final String CREATE_TABLE_EXPENSE_IMAGES = "CREATE TABLE " + TABLE_EXPENSE_IMAGES + " ("
             + COLUMN_EXP_IMAGE_ID + " TEXT PRIMARY KEY, "
             + COLUMN_EXP_IMAGE_EXPENSE_ID + " TEXT NOT NULL, "
@@ -186,6 +189,23 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         if (oldVersion < 5) {
             try {
                 db.execSQL(CREATE_TABLE_EXPENSE_IMAGES);
+            } catch (Exception ignored) {
+            }
+        }
+
+        if (oldVersion < 6) {
+            try {
+                db.execSQL("ALTER TABLE " + TABLE_PROJECTS + " ADD COLUMN " + COLUMN_SYNC_STATUS + " INTEGER NOT NULL DEFAULT 0");
+            } catch (Exception ignored) {
+            }
+
+            try {
+                db.execSQL("ALTER TABLE " + TABLE_EXPENSES + " ADD COLUMN " + COLUMN_SYNC_STATUS + " INTEGER NOT NULL DEFAULT 0");
+            } catch (Exception ignored) {
+            }
+
+            try {
+                db.execSQL("ALTER TABLE " + TABLE_EMPLOYEES + " ADD COLUMN " + COLUMN_SYNC_STATUS + " INTEGER NOT NULL DEFAULT 0");
             } catch (Exception ignored) {
             }
         }
@@ -264,6 +284,93 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         return isValid;
     }
 
+    public boolean insertProject(Project project) {
+        if (project == null || project.getProjectId() == null || project.getProjectId().trim().isEmpty()) {
+            return false;
+        }
+
+        SQLiteDatabase db = this.getWritableDatabase();
+        ContentValues values = new ContentValues();
+        values.put(COLUMN_PROJECT_ID, project.getProjectId());
+        values.put(COLUMN_PROJECT_NAME, project.getName());
+        values.put(COLUMN_PROJECT_PASSWORD, project.getPassword());
+        values.put(COLUMN_PROJECT_PASSWORD_HASH, project.getPasswordHash());
+        values.put(COLUMN_PROJECT_DESC, project.getDescription());
+        values.put(COLUMN_PROJECT_START_DATE, project.getStartDate());
+        values.put(COLUMN_PROJECT_END_DATE, project.getEndDate());
+        values.put(COLUMN_PROJECT_MANAGER, project.getManager());
+        values.put(COLUMN_PROJECT_STATUS, project.getStatus());
+        values.put(COLUMN_PROJECT_BUDGET, project.getBudget());
+        values.put(COLUMN_PROJECT_SPECIAL_REQ, project.getSpecialRequirements());
+        values.put(COLUMN_PROJECT_CLIENT, project.getClientInfo());
+        values.put(COLUMN_SYNC_STATUS, 0);
+
+        return db.insert(TABLE_PROJECTS, null, values) != -1;
+    }
+
+    public boolean updateProject(Project project) {
+        if (project == null || project.getProjectId() == null || project.getProjectId().trim().isEmpty()) {
+            return false;
+        }
+
+        SQLiteDatabase db = this.getWritableDatabase();
+        ContentValues values = new ContentValues();
+        values.put(COLUMN_PROJECT_NAME, project.getName());
+        values.put(COLUMN_PROJECT_PASSWORD, project.getPassword());
+        values.put(COLUMN_PROJECT_PASSWORD_HASH, project.getPasswordHash());
+        values.put(COLUMN_PROJECT_DESC, project.getDescription());
+        values.put(COLUMN_PROJECT_START_DATE, project.getStartDate());
+        values.put(COLUMN_PROJECT_END_DATE, project.getEndDate());
+        values.put(COLUMN_PROJECT_MANAGER, project.getManager());
+        values.put(COLUMN_PROJECT_STATUS, project.getStatus());
+        values.put(COLUMN_PROJECT_BUDGET, project.getBudget());
+        values.put(COLUMN_PROJECT_SPECIAL_REQ, project.getSpecialRequirements());
+        values.put(COLUMN_PROJECT_CLIENT, project.getClientInfo());
+        values.put(COLUMN_SYNC_STATUS, 2);
+
+        return db.update(TABLE_PROJECTS, values, COLUMN_PROJECT_ID + "=?", new String[]{project.getProjectId()}) > 0;
+    }
+
+    public boolean insertEmployee(Employee employee) {
+        if (employee == null) {
+            return false;
+        }
+
+        SQLiteDatabase db = this.getWritableDatabase();
+        ContentValues values = new ContentValues();
+
+        if (employee.getId() != null && !employee.getId().trim().isEmpty()) {
+            try {
+                values.put(COLUMN_EMP_ID, Integer.parseInt(employee.getId().trim()));
+            } catch (NumberFormatException ignored) {
+            }
+        }
+
+        values.put(COLUMN_EMP_NAME, employee.getName());
+        values.put(COLUMN_EMP_CODE, employee.getCode());
+        values.put(COLUMN_EMP_EMAIL, employee.getEmail());
+        values.put(COLUMN_EMP_ROLE, employee.getRole() == null || employee.getRole().trim().isEmpty() ? "employee" : employee.getRole());
+        values.put(COLUMN_SYNC_STATUS, 0);
+
+        return db.insert(TABLE_EMPLOYEES, null, values) != -1;
+    }
+
+    public boolean updateEmployee(Employee employee) {
+        if (employee == null || employee.getId() == null || employee.getId().trim().isEmpty()) {
+            return false;
+        }
+
+        SQLiteDatabase db = this.getWritableDatabase();
+        ContentValues values = new ContentValues();
+        values.put(COLUMN_EMP_NAME, employee.getName());
+        values.put(COLUMN_EMP_CODE, employee.getCode());
+        values.put(COLUMN_EMP_EMAIL, employee.getEmail());
+        values.put(COLUMN_EMP_ROLE, employee.getRole() == null || employee.getRole().trim().isEmpty() ? "employee" : employee.getRole());
+        values.put(COLUMN_SYNC_STATUS, 2);
+
+        return db.update(TABLE_EMPLOYEES, values, COLUMN_EMP_ID + "=?", new String[]{employee.getId().trim()}) > 0;
+    }
+
     public boolean insertExpense(Expense expense) {
         SQLiteDatabase db = this.getWritableDatabase();
         ContentValues values = new ContentValues();
@@ -278,6 +385,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         values.put(COLUMN_EXPENSE_STATUS, expense.getStatus());
         values.put(COLUMN_EXPENSE_DESC, expense.getDescription());
         values.put(COLUMN_EXPENSE_LOCATION, expense.getLocation());
+        values.put(COLUMN_SYNC_STATUS, 0);
 
         long result = db.insert(TABLE_EXPENSES, null, values);
         return result != -1;
@@ -570,6 +678,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         values.put(COLUMN_EXPENSE_STATUS, expense.getStatus());
         values.put(COLUMN_EXPENSE_DESC, expense.getDescription());
         values.put(COLUMN_EXPENSE_LOCATION, expense.getLocation());
+        values.put(COLUMN_SYNC_STATUS, 2);
 
         int rowsUpdated = db.update(TABLE_EXPENSES, values, COLUMN_EXPENSE_ID + "=?", new String[]{expense.getExpenseId()});
         return rowsUpdated > 0;
@@ -579,5 +688,150 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         SQLiteDatabase db = this.getWritableDatabase();
         int rowsDeleted = db.delete(TABLE_EXPENSES, COLUMN_EXPENSE_ID + "=?", new String[]{expenseId});
         return rowsDeleted > 0;
+    }
+
+    public List<Project> getUnsyncedProjects() {
+        List<Project> projectList = new ArrayList<>();
+        String selectQuery = "SELECT * FROM " + TABLE_PROJECTS +
+                " WHERE " + COLUMN_SYNC_STATUS + " IN (0, 2)";
+
+        SQLiteDatabase db = this.getReadableDatabase();
+        Cursor cursor = db.rawQuery(selectQuery, null);
+
+        if (cursor != null) {
+            if (cursor.moveToFirst()) {
+                do {
+                    Project project = new Project();
+                    project.setProjectId(cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_PROJECT_ID)));
+                    project.setName(cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_PROJECT_NAME)));
+                    project.setPassword(cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_PROJECT_PASSWORD)));
+                    project.setPasswordHash(cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_PROJECT_PASSWORD_HASH)));
+                    project.setDescription(cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_PROJECT_DESC)));
+                    project.setStartDate(cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_PROJECT_START_DATE)));
+                    project.setEndDate(cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_PROJECT_END_DATE)));
+                    project.setManager(cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_PROJECT_MANAGER)));
+                    project.setStatus(cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_PROJECT_STATUS)));
+                    project.setBudget(cursor.getDouble(cursor.getColumnIndexOrThrow(COLUMN_PROJECT_BUDGET)));
+                    project.setSpecialRequirements(cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_PROJECT_SPECIAL_REQ)));
+                    project.setClientInfo(cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_PROJECT_CLIENT)));
+                    project.setSpentAmount(getTotalExpenseForProject(project.getProjectId()));
+
+                    projectList.add(project);
+                } while (cursor.moveToNext());
+            }
+            cursor.close();
+        }
+
+        return projectList;
+    }
+
+    public List<Expense> getUnsyncedExpenses() {
+        List<Expense> expenseList = new ArrayList<>();
+        String selectQuery = "SELECT * FROM " + TABLE_EXPENSES +
+                " WHERE " + COLUMN_SYNC_STATUS + " IN (0, 2)";
+
+        SQLiteDatabase db = this.getReadableDatabase();
+        Cursor cursor = db.rawQuery(selectQuery, null);
+
+        if (cursor != null) {
+            if (cursor.moveToFirst()) {
+                do {
+                    String claimantValue = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_EXPENSE_CLAIMANT));
+                    Expense expense = new Expense(
+                            cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_EXPENSE_ID)),
+                            cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_EXP_PROJECT_ID)),
+                            cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_EXPENSE_DATE)),
+                            cursor.getDouble(cursor.getColumnIndexOrThrow(COLUMN_EXPENSE_AMOUNT)),
+                            cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_EXPENSE_CURRENCY)),
+                            cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_EXPENSE_TYPE)),
+                            cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_EXPENSE_PAYMENT_METHOD)),
+                            claimantValue,
+                            cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_EXPENSE_STATUS)),
+                            cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_EXPENSE_DESC)),
+                            cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_EXPENSE_LOCATION))
+                    );
+
+                    expense.setClaimantDisplay(getEmployeeDisplayByClaimantValue(claimantValue));
+                    expenseList.add(expense);
+                } while (cursor.moveToNext());
+            }
+            cursor.close();
+        }
+
+        return expenseList;
+    }
+
+    public List<Employee> getUnsyncedEmployees() {
+        List<Employee> employeeList = new ArrayList<>();
+        String selectQuery = "SELECT * FROM " + TABLE_EMPLOYEES +
+                " WHERE " + COLUMN_SYNC_STATUS + " IN (0, 2)";
+
+        SQLiteDatabase db = this.getReadableDatabase();
+        Cursor cursor = db.rawQuery(selectQuery, null);
+
+        if (cursor != null) {
+            if (cursor.moveToFirst()) {
+                do {
+                    Employee employee = new Employee(
+                            cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_EMP_ID)),
+                            cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_EMP_NAME)),
+                            cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_EMP_CODE)),
+                            cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_EMP_EMAIL)),
+                            cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_EMP_ROLE))
+                    );
+                    employeeList.add(employee);
+                } while (cursor.moveToNext());
+            }
+            cursor.close();
+        }
+
+        return employeeList;
+    }
+
+    public List<String> getImagesForExpense(String expenseId) {
+        List<String> imageUrls = new ArrayList<>();
+        if (expenseId == null || expenseId.trim().isEmpty()) {
+            return imageUrls;
+        }
+
+        SQLiteDatabase db = this.getReadableDatabase();
+        Cursor cursor = db.query(
+                TABLE_EXPENSE_IMAGES,
+                new String[]{COLUMN_EXP_IMAGE_URL},
+                COLUMN_EXP_IMAGE_EXPENSE_ID + "=?",
+                new String[]{expenseId},
+                null,
+                null,
+                null
+        );
+
+        if (cursor != null) {
+            while (cursor.moveToNext()) {
+                String imageUrl = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_EXP_IMAGE_URL));
+                if (imageUrl != null && !imageUrl.trim().isEmpty()) {
+                    imageUrls.add(imageUrl);
+                }
+            }
+            cursor.close();
+        }
+
+        return imageUrls;
+    }
+
+    public void setSyncStatus(String tableName, String idColumn, String idValue, int status) {
+        if (tableName == null || tableName.trim().isEmpty()
+                || idColumn == null || idColumn.trim().isEmpty()
+                || idValue == null || idValue.trim().isEmpty()) {
+            return;
+        }
+
+        SQLiteDatabase db = this.getWritableDatabase();
+        ContentValues values = new ContentValues();
+        values.put(COLUMN_SYNC_STATUS, status);
+        db.update(tableName, values, idColumn + " = ?", new String[]{idValue});
+    }
+
+    public void updateProjectSyncStatus(String projectId, int status) {
+        setSyncStatus(TABLE_PROJECTS, COLUMN_PROJECT_ID, projectId, status);
     }
 }

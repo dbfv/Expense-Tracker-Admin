@@ -22,6 +22,7 @@ import java.util.List;
 
 import com.example.expensetrackeradmin.adapters.ExpenseImageAdapter;
 import com.example.expensetrackeradmin.helpers.DatabaseHelper;
+import com.example.expensetrackeradmin.helpers.SyncTriggerHelper;
 import com.example.expensetrackeradmin.models.Expense;
 import com.example.expensetrackeradmin.models.ExpenseImage;
 
@@ -66,6 +67,7 @@ public class ExpenseDetailsActivity extends AppCompatActivity {
     @Override
     protected void onResume() {
         super.onResume();
+        SyncTriggerHelper.attemptSyncIfOnline(this);
         if (expenseId != null) {
             loadExpenseDetails();
         } else {
@@ -157,6 +159,7 @@ public class ExpenseDetailsActivity extends AppCompatActivity {
         btnCancel.setOnClickListener(v -> dialog.dismiss());
         btnDelete.setOnClickListener(v -> {
             if (dbHelper.deleteExpense(expenseId)) {
+                SyncTriggerHelper.attemptSyncIfOnline(this);
                 Toast.makeText(this, "Expense deleted successfully!", Toast.LENGTH_SHORT).show();
                 dialog.dismiss();
                 finish();

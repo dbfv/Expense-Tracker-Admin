@@ -31,6 +31,7 @@ import com.example.expensetrackeradmin.adapters.ExpenseImageAdapter;
 import com.example.expensetrackeradmin.helpers.CloudinaryHelper;
 import com.example.expensetrackeradmin.helpers.DatabaseHelper;
 import com.example.expensetrackeradmin.helpers.LocationHelper;
+import com.example.expensetrackeradmin.helpers.SyncTriggerHelper;
 import com.example.expensetrackeradmin.models.Employee;
 import com.example.expensetrackeradmin.models.Expense;
 import com.example.expensetrackeradmin.models.ExpenseImage;
@@ -112,6 +113,12 @@ public class AddExpenseActivity extends AppCompatActivity {
                 }
             }
     );
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        SyncTriggerHelper.attemptSyncIfOnline(this);
+    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -563,6 +570,7 @@ public class AddExpenseActivity extends AppCompatActivity {
         setSavingState(false);
 
         if (saved) {
+            SyncTriggerHelper.attemptSyncIfOnline(this);
             String message = isEditMode ? "Expense updated successfully!" : "Expense saved successfully!";
             Toast.makeText(this, message, Toast.LENGTH_SHORT).show();
             finish();

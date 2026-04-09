@@ -1,4 +1,8 @@
 package com.example.expensetrackeradmin.models;
+
+import android.content.ContentValues;
+import android.database.sqlite.SQLiteDatabase;
+
 public class Project {
     private String projectId;
     private String name;
@@ -73,4 +77,5 @@ public class Project {
 
     public double getSpentAmount() { return spentAmount; }
     public void setSpentAmount(double spentAmount) { this.spentAmount = spentAmount; }
+
 }

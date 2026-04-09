@@ -26,6 +26,7 @@ import java.util.List;
 
 import com.example.expensetrackeradmin.adapters.ExpenseAdapter;
 import com.example.expensetrackeradmin.helpers.DatabaseHelper;
+import com.example.expensetrackeradmin.helpers.SyncTriggerHelper;
 import com.example.expensetrackeradmin.models.Expense;
 import com.example.expensetrackeradmin.models.Project;
 
@@ -81,6 +82,7 @@ public class ProjectDetailsActivity extends AppCompatActivity {
     @Override
     protected void onResume() {
         super.onResume();
+        SyncTriggerHelper.attemptSyncIfOnline(this);
         if (projectId != null) {
             loadProjectDetails();
             loadExpenses();
@@ -191,6 +193,7 @@ public class ProjectDetailsActivity extends AppCompatActivity {
             String enteredName = etConfirmName.getText().toString().trim();
             if (enteredName.equals(projectName)) {
                 if (dbHelper.deleteProject(projectId)) {
+                    SyncTriggerHelper.attemptSyncIfOnline(this);
                     Toast.makeText(this, "Project deleted successfully!", Toast.LENGTH_SHORT).show();
                     dialog.dismiss();
                     finish();

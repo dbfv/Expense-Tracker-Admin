@@ -3,7 +3,10 @@ package com.example.expensetrackeradmin.activities;
 import android.content.Intent;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
+import android.net.ConnectivityManager;
+import android.net.Network;
 import android.os.Bundle;
+import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
@@ -11,6 +14,7 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.example.expensetrackeradmin.R;
+import com.google.android.material.button.MaterialButton;
 import com.google.android.material.floatingactionbutton.ExtendedFloatingActionButton;
 import com.google.firebase.auth.FirebaseAuth;
 
@@ -19,12 +23,14 @@ import java.util.List;
 
 import com.example.expensetrackeradmin.adapters.ProjectAdapter;
 import com.example.expensetrackeradmin.helpers.DatabaseHelper;
+import com.example.expensetrackeradmin.helpers.SyncTriggerHelper;
 import com.example.expensetrackeradmin.models.Project;
 
 public class MainActivity extends AppCompatActivity {
 
     private FirebaseAuth mAuth;
     private ExtendedFloatingActionButton fabAddProject;
+    private MaterialButton btnSyncNow;
 
     private RecyclerView rvProjects;
     private ProjectAdapter adapter;
@@ -32,6 +38,10 @@ public class MainActivity extends AppCompatActivity {
     private DatabaseHelper dbHelper;
     private com.google.android.material.textfield.TextInputEditText etSearchProject;
     private List<Project> allProjectsList = new ArrayList<>();
+    private ConnectivityManager connectivityManager;
+    private ConnectivityManager.NetworkCallback networkCallback;
+    private long lastAutoSyncAttemptMs = 0L;
+    private static final long AUTO_SYNC_THROTTLE_MS = 5000L;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -49,8 +59,15 @@ public class MainActivity extends AppCompatActivity {
                 startActivity(intent);
                 return true;
             }
+            if (item.getItemId() == R.id.action_sync) {
+                triggerManualSync(true);
+                return true;
+            }
             return false;
         });
+
+        btnSyncNow = findViewById(R.id.btnSyncNow);
+        btnSyncNow.setOnClickListener(v -> triggerManualSync(true));
 
         fabAddProject = findViewById(R.id.fabAddProject);
         fabAddProject.setOnClickListener(v -> {
@@ -81,9 +98,22 @@ public class MainActivity extends AppCompatActivity {
     }
 
     @Override
+    protected void onStart() {
+        super.onStart();
+        registerNetworkCallback();
+    }
+
+    @Override
     protected void onResume() {
         super.onResume();
         loadProjectsFromDB();
+        attemptAutoSync();
+    }
+
+    @Override
+    protected void onStop() {
+        super.onStop();
+        unregisterNetworkCallback();
     }
 
     private void loadProjectsFromDB() {
@@ -128,5 +158,64 @@ public class MainActivity extends AppCompatActivity {
             }
         }
         adapter.updateData(filteredList);
+    }
+
+    private void triggerManualSync(boolean showFeedback) {
+        if (!SyncTriggerHelper.isNetworkAvailable(this)) {
+            if (showFeedback) {
+                Toast.makeText(this, "No network connection.", Toast.LENGTH_SHORT).show();
+            }
+            return;
+        }
+
+        SyncTriggerHelper.attemptSyncIfOnline(this);
+        if (showFeedback) {
+            Toast.makeText(this, "Sync started.", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private void attemptAutoSync() {
+        long now = System.currentTimeMillis();
+        if (now - lastAutoSyncAttemptMs < AUTO_SYNC_THROTTLE_MS) {
+            return;
+        }
+        lastAutoSyncAttemptMs = now;
+        triggerManualSync(false);
+    }
+
+    private void registerNetworkCallback() {
+        if (networkCallback != null) {
+            return;
+        }
+
+        connectivityManager = (ConnectivityManager) getSystemService(CONNECTIVITY_SERVICE);
+        if (connectivityManager == null) {
+            return;
+        }
+
+        networkCallback = new ConnectivityManager.NetworkCallback() {
+            @Override
+            public void onAvailable(Network network) {
+                runOnUiThread(() -> attemptAutoSync());
+            }
+        };
+
+        try {
+            connectivityManager.registerDefaultNetworkCallback(networkCallback);
+        } catch (SecurityException ignored) {
+        }
+    }
+
+    private void unregisterNetworkCallback() {
+        if (connectivityManager == null || networkCallback == null) {
+            return;
+        }
+
+        try {
+            connectivityManager.unregisterNetworkCallback(networkCallback);
+        } catch (Exception ignored) {
+        }
+
+        networkCallback = null;
     }
 }
