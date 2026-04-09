@@ -325,6 +325,40 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         return employee;
     }
 
+    public Employee getEmployeeByEmail(String employeeEmail) {
+        if (employeeEmail == null || employeeEmail.trim().isEmpty()) {
+            return null;
+        }
+
+        SQLiteDatabase db = this.getReadableDatabase();
+        Employee employee = null;
+
+        Cursor cursor = db.query(
+                TABLE_EMPLOYEES,
+                new String[]{COLUMN_EMP_ID, COLUMN_EMP_NAME, COLUMN_EMP_CODE, COLUMN_EMP_EMAIL, COLUMN_EMP_ROLE},
+                COLUMN_EMP_EMAIL + " = ? COLLATE NOCASE",
+                new String[]{employeeEmail.trim()},
+                null,
+                null,
+                null
+        );
+
+        if (cursor != null) {
+            if (cursor.moveToFirst()) {
+                employee = new Employee(
+                        cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_EMP_ID)),
+                        cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_EMP_NAME)),
+                        cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_EMP_CODE)),
+                        cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_EMP_EMAIL)),
+                        cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_EMP_ROLE))
+                );
+            }
+            cursor.close();
+        }
+
+        return employee;
+    }
+
     private String formatEmployeeDisplay(Employee employee) {
         return employee.getName() + " - " + employee.getCode();
     }
