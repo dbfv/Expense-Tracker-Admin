@@ -1,11 +1,9 @@
-package com.example.expensetrackeradmin;
+package com.example.expensetrackeradmin.activities;
 
 import android.app.Dialog;
 import android.content.Intent;
 import android.graphics.Color;
 import android.os.Bundle;
-import android.view.View;
-import android.view.Window;
 import android.widget.Button;
 import android.widget.ProgressBar;
 import android.widget.TextView;
@@ -17,6 +15,7 @@ import androidx.core.content.ContextCompat;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
+import com.example.expensetrackeradmin.R;
 import com.google.android.material.chip.Chip;
 import com.google.android.material.floatingactionbutton.ExtendedFloatingActionButton;
 import com.google.android.material.textfield.TextInputEditText;
@@ -25,8 +24,10 @@ import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.List;
 
-import models.Expense;
-import models.Project;
+import com.example.expensetrackeradmin.adapters.ExpenseAdapter;
+import com.example.expensetrackeradmin.helpers.DatabaseHelper;
+import com.example.expensetrackeradmin.models.Expense;
+import com.example.expensetrackeradmin.models.Project;
 
 public class ProjectDetailsActivity extends AppCompatActivity {
 

@@ -1,4 +1,4 @@
-package com.example.expensetrackeradmin;
+package com.example.expensetrackeradmin.activities;
 
 import android.content.Intent;
 import android.database.Cursor;
@@ -10,13 +10,16 @@ import androidx.appcompat.widget.Toolbar;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
+import com.example.expensetrackeradmin.R;
 import com.google.android.material.floatingactionbutton.ExtendedFloatingActionButton;
 import com.google.firebase.auth.FirebaseAuth;
 
 import java.util.ArrayList;
 import java.util.List;
 
-import models.Project;
+import com.example.expensetrackeradmin.adapters.ProjectAdapter;
+import com.example.expensetrackeradmin.helpers.DatabaseHelper;
+import com.example.expensetrackeradmin.models.Project;
 
 public class MainActivity extends AppCompatActivity {
 

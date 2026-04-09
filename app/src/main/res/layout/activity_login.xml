@@ -7,7 +7,7 @@
     android:layout_height="match_parent"
     android:background="@color/surface"
     android:padding="24dp"
-    tools:context=".LoginActivity">
+    tools:context=".activities.LoginActivity">
 
     <FrameLayout
         android:id="@+id/logoContainer"

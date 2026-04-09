@@ -1,4 +1,4 @@
-package models;
+package com.example.expensetrackeradmin.models;
 public class Project {
     private String projectId;
     private String name;

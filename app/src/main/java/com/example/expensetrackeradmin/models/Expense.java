@@ -1,4 +1,7 @@
-package models;
+package com.example.expensetrackeradmin.models;
+import java.util.ArrayList;
+import java.util.List;
+
 public class Expense {
     private String expenseId;
     private String projectId;
@@ -12,8 +15,10 @@ public class Expense {
     private String status;
     private String description;
     private String location;
+    private List<ExpenseImage> images;
 
     public Expense() {
+        this.images = new ArrayList<>();
     }
 
     public Expense(String expenseId, String projectId, String date, double amount,
@@ -31,6 +36,7 @@ public class Expense {
         this.status = status;
         this.description = description;
         this.location = location;
+        this.images = new ArrayList<>();
     }
 
     // --- Getters và Setters ---
@@ -70,4 +76,9 @@ public class Expense {
 
     public String getLocation() { return location; }
     public void setLocation(String location) { this.location = location; }
+
+    public List<ExpenseImage> getImages() { return images; }
+    public void setImages(List<ExpenseImage> images) {
+        this.images = images != null ? images : new ArrayList<>();
+    }
 }

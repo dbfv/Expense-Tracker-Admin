@@ -1,4 +1,4 @@
-package com.example.expensetrackeradmin;
+package com.example.expensetrackeradmin.adapters;
 
 import android.view.LayoutInflater;
 import android.view.View;
@@ -6,12 +6,14 @@ import android.view.ViewGroup;
 import android.widget.TextView;
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
+
+import com.example.expensetrackeradmin.R;
 import com.google.android.material.chip.Chip;
 import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.List;
 
-import models.Expense;
+import com.example.expensetrackeradmin.models.Expense;
 
 public class ExpenseAdapter extends RecyclerView.Adapter<ExpenseAdapter.ExpenseViewHolder> {
 

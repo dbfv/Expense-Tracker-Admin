@@ -1,4 +1,4 @@
-package com.example.expensetrackeradmin;
+package com.example.expensetrackeradmin.utils;
 
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;

@@ -1,4 +1,4 @@
-package com.example.expensetrackeradmin;
+package com.example.expensetrackeradmin.activities;
 
 import android.app.DatePickerDialog;
 import android.content.ContentValues;
@@ -13,6 +13,7 @@ import android.widget.Toast;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
 
+import com.example.expensetrackeradmin.R;
 import com.google.android.material.textfield.TextInputEditText;
 
 import java.text.SimpleDateFormat;
@@ -22,6 +23,9 @@ import java.util.Date;
 import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
+
+import com.example.expensetrackeradmin.helpers.DatabaseHelper;
+import com.example.expensetrackeradmin.utils.MD5Util;
 
 public class AddProjectActivity extends AppCompatActivity {
 

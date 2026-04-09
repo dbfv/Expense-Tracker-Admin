@@ -1,4 +1,4 @@
-package com.example.expensetrackeradmin;
+package com.example.expensetrackeradmin.adapters;
 
 import android.view.LayoutInflater;
 import android.view.View;
@@ -7,11 +7,14 @@ import android.widget.ProgressBar;
 import android.widget.TextView;
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
+
+import com.example.expensetrackeradmin.activities.ProjectDetailsActivity;
+import com.example.expensetrackeradmin.R;
 import com.google.android.material.chip.Chip;
 import java.text.DecimalFormat;
 import java.util.List;
 
-import models.Project;
+import com.example.expensetrackeradmin.models.Project;
 
 public class ProjectAdapter extends RecyclerView.Adapter<ProjectAdapter.ProjectViewHolder> {
 

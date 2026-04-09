@@ -1,4 +1,4 @@
-package com.example.expensetrackeradmin;
+package com.example.expensetrackeradmin.activities;
 
 import android.app.Dialog;
 import android.content.Intent;
@@ -10,19 +10,29 @@ import android.widget.Toast;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
 import androidx.core.content.ContextCompat;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
 
+import com.example.expensetrackeradmin.R;
 import com.google.android.material.chip.Chip;
-import com.google.android.material.textfield.TextInputEditText;
 
 import java.text.DecimalFormat;
+import java.util.ArrayList;
+import java.util.List;
 
-import models.Expense;
+import com.example.expensetrackeradmin.adapters.ExpenseImageAdapter;
+import com.example.expensetrackeradmin.helpers.DatabaseHelper;
+import com.example.expensetrackeradmin.models.Expense;
+import com.example.expensetrackeradmin.models.ExpenseImage;
 
 public class ExpenseDetailsActivity extends AppCompatActivity {
 
     private TextView tvExpenseType, tvExpenseAmount, tvExpenseCurrency, tvExpenseDate, tvClaimant, tvPaymentMethod, tvLocation, tvDescription;
     private Chip chipExpenseId, chipExpenseStatus;
+    private RecyclerView rvExpenseImages;
     private DatabaseHelper dbHelper;
+    private ExpenseImageAdapter expenseImageAdapter;
+    private final List<String> expenseImageUrls = new ArrayList<>();
     private String expenseId;
 
     @Override
@@ -75,6 +85,11 @@ public class ExpenseDetailsActivity extends AppCompatActivity {
         tvPaymentMethod = findViewById(R.id.tvPaymentMethod);
         tvLocation = findViewById(R.id.tvLocation);
         tvDescription = findViewById(R.id.tvDescription);
+        rvExpenseImages = findViewById(R.id.rvExpenseImages);
+
+        rvExpenseImages.setLayoutManager(new LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false));
+        expenseImageAdapter = new ExpenseImageAdapter(expenseImageUrls, false, null);
+        rvExpenseImages.setAdapter(expenseImageAdapter);
     }
 
     private void loadExpenseDetails() {
@@ -103,6 +118,17 @@ public class ExpenseDetailsActivity extends AppCompatActivity {
             
             String desc = expense.getDescription();
             tvDescription.setText(desc != null && !desc.isEmpty() ? desc : "-");
+
+            expenseImageUrls.clear();
+            if (expense.getImages() != null) {
+                for (ExpenseImage image : expense.getImages()) {
+                    if (image.getImageUrl() != null && !image.getImageUrl().trim().isEmpty()) {
+                        expenseImageUrls.add(image.getImageUrl());
+                    }
+                }
+            }
+            expenseImageAdapter.updateData(expenseImageUrls);
+            rvExpenseImages.setVisibility(expenseImageUrls.isEmpty() ? android.view.View.GONE : android.view.View.VISIBLE);
 
             String status = expense.getStatus();
             chipExpenseStatus.setText(status.toUpperCase());

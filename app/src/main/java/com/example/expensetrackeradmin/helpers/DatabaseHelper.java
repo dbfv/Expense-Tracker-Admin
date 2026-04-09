@@ -1,16 +1,21 @@
-package com.example.expensetrackeradmin;
+package com.example.expensetrackeradmin.helpers;
 
 import android.content.Context;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteOpenHelper;
 import android.content.ContentValues;
+
+import com.example.expensetrackeradmin.utils.MD5Util;
+
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
-import models.Project;
-import models.Expense;
-import models.Employee;
+import com.example.expensetrackeradmin.models.Project;
+import com.example.expensetrackeradmin.models.Expense;
+import com.example.expensetrackeradmin.models.Employee;
+import com.example.expensetrackeradmin.models.ExpenseImage;
 
 public class DatabaseHelper extends SQLiteOpenHelper {
 
@@ -33,12 +38,13 @@ public class DatabaseHelper extends SQLiteOpenHelper {
     }
 
     private static final String DATABASE_NAME = "ExpenseTracker.db";
-    private static final int DATABASE_VERSION = 4;
+    private static final int DATABASE_VERSION = 5;
 
     // Table names
     public static final String TABLE_PROJECTS = "projects";
     public static final String TABLE_EXPENSES = "expenses";
     public static final String TABLE_EMPLOYEES = "employees";
+    public static final String TABLE_EXPENSE_IMAGES = "ExpenseImages";
 
     // Projects Table - Columns
     public static final String COLUMN_PROJECT_ID = "project_id";
@@ -66,6 +72,11 @@ public class DatabaseHelper extends SQLiteOpenHelper {
     public static final String COLUMN_EXPENSE_STATUS = "payment_status";
     public static final String COLUMN_EXPENSE_DESC = "description";
     public static final String COLUMN_EXPENSE_LOCATION = "location";
+
+    // ExpenseImages Table - Columns
+    public static final String COLUMN_EXP_IMAGE_ID = "imageId";
+    public static final String COLUMN_EXP_IMAGE_EXPENSE_ID = "expenseId";
+    public static final String COLUMN_EXP_IMAGE_URL = "imageUrl";
 
     // Employees Table - Columns
     public static final String COLUMN_EMP_ID = "id";
@@ -112,6 +123,13 @@ public class DatabaseHelper extends SQLiteOpenHelper {
             + COLUMN_EMP_ROLE + " TEXT NOT NULL DEFAULT 'employee'"
             + ");";
 
+        private static final String CREATE_TABLE_EXPENSE_IMAGES = "CREATE TABLE " + TABLE_EXPENSE_IMAGES + " ("
+            + COLUMN_EXP_IMAGE_ID + " TEXT PRIMARY KEY, "
+            + COLUMN_EXP_IMAGE_EXPENSE_ID + " TEXT NOT NULL, "
+            + COLUMN_EXP_IMAGE_URL + " TEXT NOT NULL, "
+            + "FOREIGN KEY(" + COLUMN_EXP_IMAGE_EXPENSE_ID + ") REFERENCES " + TABLE_EXPENSES + "(" + COLUMN_EXPENSE_ID + ") ON DELETE CASCADE"
+            + ");";
+
     public DatabaseHelper(Context context) {
         super(context, DATABASE_NAME, null, DATABASE_VERSION);
     }
@@ -121,6 +139,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         db.execSQL(CREATE_TABLE_PROJECTS);
         db.execSQL(CREATE_TABLE_EXPENSES);
         db.execSQL(CREATE_TABLE_EMPLOYEES);
+        db.execSQL(CREATE_TABLE_EXPENSE_IMAGES);
 
         insertDefaultAdmins(db);
     }
@@ -160,6 +179,13 @@ public class DatabaseHelper extends SQLiteOpenHelper {
             try {
                 db.execSQL("ALTER TABLE " + TABLE_PROJECTS + " ADD COLUMN " + COLUMN_PROJECT_PASSWORD + " TEXT NOT NULL DEFAULT ''");
                 db.execSQL("ALTER TABLE " + TABLE_PROJECTS + " ADD COLUMN " + COLUMN_PROJECT_PASSWORD_HASH + " TEXT NOT NULL DEFAULT ''");
+            } catch (Exception ignored) {
+            }
+        }
+
+        if (oldVersion < 5) {
+            try {
+                db.execSQL(CREATE_TABLE_EXPENSE_IMAGES);
             } catch (Exception ignored) {
             }
         }
@@ -255,6 +281,70 @@ public class DatabaseHelper extends SQLiteOpenHelper {
 
         long result = db.insert(TABLE_EXPENSES, null, values);
         return result != -1;
+    }
+
+    public boolean insertExpenseImage(String expenseId, String imageUrl) {
+        if (expenseId == null || expenseId.trim().isEmpty() || imageUrl == null || imageUrl.trim().isEmpty()) {
+            return false;
+        }
+
+        SQLiteDatabase db = this.getWritableDatabase();
+        ContentValues values = new ContentValues();
+        values.put(COLUMN_EXP_IMAGE_ID, UUID.randomUUID().toString());
+        values.put(COLUMN_EXP_IMAGE_EXPENSE_ID, expenseId);
+        values.put(COLUMN_EXP_IMAGE_URL, imageUrl);
+        return db.insert(TABLE_EXPENSE_IMAGES, null, values) != -1;
+    }
+
+    public void replaceExpenseImages(String expenseId, List<String> imageUrls) {
+        SQLiteDatabase db = this.getWritableDatabase();
+        db.beginTransaction();
+        try {
+            db.delete(TABLE_EXPENSE_IMAGES, COLUMN_EXP_IMAGE_EXPENSE_ID + "=?", new String[]{expenseId});
+            if (imageUrls != null) {
+                for (String imageUrl : imageUrls) {
+                    if (imageUrl == null || imageUrl.trim().isEmpty()) {
+                        continue;
+                    }
+                    ContentValues values = new ContentValues();
+                    values.put(COLUMN_EXP_IMAGE_ID, UUID.randomUUID().toString());
+                    values.put(COLUMN_EXP_IMAGE_EXPENSE_ID, expenseId);
+                    values.put(COLUMN_EXP_IMAGE_URL, imageUrl);
+                    db.insert(TABLE_EXPENSE_IMAGES, null, values);
+                }
+            }
+            db.setTransactionSuccessful();
+        } finally {
+            db.endTransaction();
+        }
+    }
+
+    public List<ExpenseImage> getExpenseImagesByExpenseId(String expenseId) {
+        List<ExpenseImage> images = new ArrayList<>();
+        SQLiteDatabase db = this.getReadableDatabase();
+
+        Cursor cursor = db.query(
+                TABLE_EXPENSE_IMAGES,
+                new String[]{COLUMN_EXP_IMAGE_ID, COLUMN_EXP_IMAGE_EXPENSE_ID, COLUMN_EXP_IMAGE_URL},
+                COLUMN_EXP_IMAGE_EXPENSE_ID + "=?",
+                new String[]{expenseId},
+                null,
+                null,
+                null
+        );
+
+        if (cursor != null) {
+            while (cursor.moveToNext()) {
+                images.add(new ExpenseImage(
+                        cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_EXP_IMAGE_ID)),
+                        cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_EXP_IMAGE_EXPENSE_ID)),
+                        cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_EXP_IMAGE_URL))
+                ));
+            }
+            cursor.close();
+        }
+
+        return images;
     }
 
     public Employee getEmployeeByCode(String employeeCode) {
@@ -431,6 +521,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
                 cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_EXPENSE_LOCATION))
             );
             expense.setClaimantDisplay(getEmployeeDisplayByClaimantValue(claimantValue));
+            expense.setImages(getExpenseImagesByExpenseId(expense.getExpenseId()));
             cursor.close();
         }
         return expense;
