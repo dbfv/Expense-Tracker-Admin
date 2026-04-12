@@ -162,7 +162,11 @@ public class AddProjectActivity extends AppCompatActivity {
     private void loadManagers() {
         List<String> managerNames = new ArrayList<>();
         SQLiteDatabase db = dbHelper.getReadableDatabase();
-        Cursor cursor = db.query(DatabaseHelper.TABLE_EMPLOYEES, new String[]{DatabaseHelper.COLUMN_EMP_NAME}, null, null, null, null, null);
+        Cursor cursor = db.query(DatabaseHelper.TABLE_EMPLOYEES, 
+                new String[]{DatabaseHelper.COLUMN_EMP_NAME}, 
+                DatabaseHelper.COLUMN_EMP_ROLE + "=?", 
+                new String[]{"admin"}, 
+                null, null, null);
 
         if (cursor != null) {
             while (cursor.moveToNext()) {
@@ -225,7 +229,7 @@ public class AddProjectActivity extends AppCompatActivity {
 
         StringBuilder missingFields = new StringBuilder();
         if (name.isEmpty()) missingFields.append("• Project Name\n");
-        if (password.isEmpty()) missingFields.append("• Project Password\n");
+        if (!isEditMode && password.isEmpty()) missingFields.append("• Project Password\n");
         if (desc.isEmpty()) missingFields.append("• Description\n");
         if (startDate.isEmpty()) missingFields.append("• Start Date\n");
         if (endDate.isEmpty()) missingFields.append("• End Date\n");
@@ -238,7 +242,7 @@ public class AddProjectActivity extends AppCompatActivity {
             return;
         }
 
-        if (!MD5Util.isValidPassword(password)) {
+        if (!password.isEmpty() && !MD5Util.isValidPassword(password)) {
             Toast.makeText(this, "Password must be 4 characters with at least 1 letter and 1 number!", Toast.LENGTH_LONG).show();
             return;
         }
@@ -262,15 +266,23 @@ public class AddProjectActivity extends AppCompatActivity {
             Toast.makeText(this, "Invalid budget format!", Toast.LENGTH_SHORT).show();
             return;
         }
-
-
-        String hashedPassword = MD5Util.md5(password);
+        String finalPassword = password;
+        String finalPasswordHash = password.isEmpty() ? "" : MD5Util.md5(password);
+        if (isEditMode && password.isEmpty()) {
+            Project existingProject = dbHelper.getProjectById(editingProjectId);
+            if (existingProject == null) {
+                Toast.makeText(this, "Project not found for update.", Toast.LENGTH_SHORT).show();
+                return;
+            }
+            finalPassword = existingProject.getPassword();
+            finalPasswordHash = existingProject.getPasswordHash();
+        }
 
         Project project = new Project();
         project.setProjectId(isEditMode ? editingProjectId : UUID.randomUUID().toString());
         project.setName(name);
-        project.setPassword(password);
-        project.setPasswordHash(hashedPassword);
+        project.setPassword(finalPassword);
+        project.setPasswordHash(finalPasswordHash);
         project.setDescription(desc);
         project.setStartDate(startDate);
         project.setEndDate(endDate);

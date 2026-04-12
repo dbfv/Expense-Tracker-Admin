@@ -31,13 +31,19 @@ public final class SyncTriggerHelper {
     }
 
     public static void attemptSyncIfOnline(Context context) {
+        attemptSyncIfOnline(context, null);
+    }
+
+    public static void attemptSyncIfOnline(Context context, Runnable onComplete) {
+        attemptSyncIfOnline(context, false, onComplete);
+    }
+
+    public static void attemptSyncIfOnline(Context context, boolean forceFullPush, Runnable onComplete) {
         if (!isNetworkAvailable(context)) {
             return;
         }
 
         SyncHelper syncHelper = new SyncHelper(context.getApplicationContext());
-        syncHelper.syncProjectsToCloud();
-        syncHelper.syncEmployeesToCloud();
-        syncHelper.syncExpensesToCloud();
+        syncHelper.syncAllPushThenPull(forceFullPush, onComplete);
     }
 }

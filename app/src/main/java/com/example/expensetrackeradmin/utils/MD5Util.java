@@ -29,18 +29,6 @@ public class MD5Util {
     }
 
     public static boolean isValidPassword(String password) {
-        if (password == null || password.length() != 4) {
-            return false;
-        }
-        boolean hasLetter = false;
-        boolean hasDigit = false;
-        for (char c : password.toCharArray()) {
-            if (Character.isLetter(c)) {
-                hasLetter = true;
-            } else if (Character.isDigit(c)) {
-                hasDigit = true;
-            }
-        }
-        return hasLetter && hasDigit;
+        return password != null && password.length() >= 4;
     }
 }

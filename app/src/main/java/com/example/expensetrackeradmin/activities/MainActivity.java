@@ -59,10 +59,6 @@ public class MainActivity extends AppCompatActivity {
                 startActivity(intent);
                 return true;
             }
-            if (item.getItemId() == R.id.action_sync) {
-                triggerManualSync(true);
-                return true;
-            }
             return false;
         });
 
@@ -168,9 +164,9 @@ public class MainActivity extends AppCompatActivity {
             return;
         }
 
-        SyncTriggerHelper.attemptSyncIfOnline(this);
+        SyncTriggerHelper.attemptSyncIfOnline(this, true, () -> runOnUiThread(this::loadProjectsFromDB));
         if (showFeedback) {
-            Toast.makeText(this, "Sync started.", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "Sync started", Toast.LENGTH_SHORT).show();
         }
     }
 

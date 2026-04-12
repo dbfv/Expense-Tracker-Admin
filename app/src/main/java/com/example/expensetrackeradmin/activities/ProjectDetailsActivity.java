@@ -26,6 +26,7 @@ import java.util.List;
 
 import com.example.expensetrackeradmin.adapters.ExpenseAdapter;
 import com.example.expensetrackeradmin.helpers.DatabaseHelper;
+import com.example.expensetrackeradmin.helpers.SyncHelper;
 import com.example.expensetrackeradmin.helpers.SyncTriggerHelper;
 import com.example.expensetrackeradmin.models.Expense;
 import com.example.expensetrackeradmin.models.Project;
@@ -191,12 +192,26 @@ public class ProjectDetailsActivity extends AppCompatActivity {
         btnCancel.setOnClickListener(v -> dialog.dismiss());
         btnDelete.setOnClickListener(v -> {
             String enteredName = etConfirmName.getText().toString().trim();
-            if (enteredName.equals(projectName)) {
+            if (enteredName.equalsIgnoreCase(projectName.trim())) {
                 if (dbHelper.deleteProject(projectId)) {
-                    SyncTriggerHelper.attemptSyncIfOnline(this);
-                    Toast.makeText(this, "Project deleted successfully!", Toast.LENGTH_SHORT).show();
-                    dialog.dismiss();
-                    finish();
+                    if (SyncTriggerHelper.isNetworkAvailable(this)) {
+                        SyncHelper syncHelper = new SyncHelper(getApplicationContext());
+                        syncHelper.deleteProjectFromCloud(projectId, () ->
+                                SyncTriggerHelper.attemptSyncIfOnline(
+                                        this,
+                                        true,
+                                        () -> runOnUiThread(() -> {
+                                            Toast.makeText(this, "Project deleted successfully!", Toast.LENGTH_SHORT).show();
+                                            dialog.dismiss();
+                                            finish();
+                                        })
+                                )
+                        );
+                    } else {
+                        Toast.makeText(this, "Project deleted locally. Connect network to sync deletion.", Toast.LENGTH_LONG).show();
+                        dialog.dismiss();
+                        finish();
+                    }
                 } else {
                     Toast.makeText(this, "Error deleting project!", Toast.LENGTH_SHORT).show();
                 }
