@@ -2,8 +2,6 @@ package com.example.expensetrackeradmin.activities;
 
 import android.app.Activity;
 import android.content.Intent;
-import android.database.Cursor;
-import android.database.sqlite.SQLiteDatabase;
 import android.os.Bundle;
 import android.util.Log;
 import android.widget.Button;
@@ -26,10 +24,12 @@ import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.auth.GoogleAuthProvider;
 
 import com.example.expensetrackeradmin.helpers.DatabaseHelper;
+import com.example.expensetrackeradmin.models.Employee;
 
 public class LoginActivity extends AppCompatActivity {
 
     private static final String TAG = "LoginActivity";
+    private static final String ROLE_ADMIN = "admin";
     private Button btnGoogleLogin;
 
     // Google & Firebase authentication tools
@@ -77,8 +77,11 @@ public class LoginActivity extends AppCompatActivity {
     }
 
     private void initiateGoogleSignIn() {
-        Intent signInIntent = mGoogleSignInClient.getSignInIntent();
-        googleSignInLauncher.launch(signInIntent);
+        // Clear cached Google account so the account chooser is shown every login attempt.
+        mGoogleSignInClient.signOut().addOnCompleteListener(this, task -> {
+            Intent signInIntent = mGoogleSignInClient.getSignInIntent();
+            googleSignInLauncher.launch(signInIntent);
+        });
     }
 
     private void firebaseAuthWithGoogle(String idToken) {
@@ -100,20 +103,10 @@ public class LoginActivity extends AppCompatActivity {
     }
 
     private void verifyEmployeeAccess(String email) {
-        SQLiteDatabase db = dbHelper.getReadableDatabase();
+        Employee employee = dbHelper.getEmployeeByEmail(email);
 
-        // Query the local database to check if the email exists in the employees table
-        Cursor cursor = db.query(
-                DatabaseHelper.TABLE_EMPLOYEES,
-                new String[]{DatabaseHelper.COLUMN_EMP_ID},
-                DatabaseHelper.COLUMN_EMP_EMAIL + " = ?",
-                new String[]{email},
-                null, null, null
-        );
-
-        if (cursor != null && cursor.getCount() > 0) {
-            // Authorized employee -> Proceed to Dashboard
-            cursor.close();
+        if (employee != null && ROLE_ADMIN.equalsIgnoreCase(employee.getRole())) {
+            // Authorized admin -> Proceed to Dashboard
             Toast.makeText(this, "Welcome to the system!", Toast.LENGTH_SHORT).show();
 
             // Navigate to MainActivity
@@ -122,22 +115,30 @@ public class LoginActivity extends AppCompatActivity {
             finish(); // Destroy the login activity
 
         } else {
-            // Unauthorized email -> Sign out and show error
-            if (cursor != null) cursor.close();
-            mAuth.signOut();
-            mGoogleSignInClient.signOut();
-            Toast.makeText(this, "Access denied: Email not authorized!", Toast.LENGTH_LONG).show();
+            // Unauthorized or non-admin email -> Sign out and show error
+            signOutCompletely();
+            Toast.makeText(this, "Access denied: Admin role required.", Toast.LENGTH_LONG).show();
         }
     }
+
+    private void signOutCompletely() {
+        mAuth.signOut();
+        mGoogleSignInClient.signOut();
+        mGoogleSignInClient.revokeAccess();
+    }
+
     @Override
     protected void onStart() {
         super.onStart();
         FirebaseUser currentUser = mAuth.getCurrentUser();
 
         if (currentUser != null) {
-            Intent intent = new Intent(LoginActivity.this, MainActivity.class);
-            startActivity(intent);
-            finish();
+            String email = currentUser.getEmail();
+            if (email != null && !email.trim().isEmpty()) {
+                verifyEmployeeAccess(email);
+            } else {
+                signOutCompletely();
+            }
         }
     }
 }

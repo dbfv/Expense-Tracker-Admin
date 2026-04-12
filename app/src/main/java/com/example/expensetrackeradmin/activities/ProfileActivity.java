@@ -10,6 +10,9 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
 
 import com.example.expensetrackeradmin.R;
+import com.google.android.gms.auth.api.signin.GoogleSignIn;
+import com.google.android.gms.auth.api.signin.GoogleSignInClient;
+import com.google.android.gms.auth.api.signin.GoogleSignInOptions;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
 
@@ -76,13 +79,22 @@ public class ProfileActivity extends AppCompatActivity {
             // 1. Sign out Firebase token and session
             FirebaseAuth.getInstance().signOut();
 
-            // 2. Send user back to Login screen
+            // 2. Clear Google session so next login asks to choose account again
+            GoogleSignInOptions gso = new GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
+                    .requestIdToken(getString(R.string.default_web_client_id))
+                    .requestEmail()
+                    .build();
+            GoogleSignInClient googleSignInClient = GoogleSignIn.getClient(ProfileActivity.this, gso);
+            googleSignInClient.signOut();
+            googleSignInClient.revokeAccess();
+
+            // 3. Send user back to Login screen
             Intent intent = new Intent(ProfileActivity.this, LoginActivity.class);
 
-            // 3. Clear entire back stack to prevent returning with Back button
+            // 4. Clear entire back stack to prevent returning with Back button
             intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
 
-            // 4. Start Login and close current activity
+            // 5. Start Login and close current activity
             startActivity(intent);
             finish();
         });
