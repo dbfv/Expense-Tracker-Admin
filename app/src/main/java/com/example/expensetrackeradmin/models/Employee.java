@@ -1,13 +1,20 @@
 package com.example.expensetrackeradmin.models;
+
+import java.util.ArrayList;
+import java.util.List;
+
 public class Employee {
     private String id;
     private String name;
     private String code;
     private String email;
     private String role;
+    private List<String> joinedProjects;
+    private List<String> favoriteProjects;
 
-    // Empty constructor required for some frameworks
     public Employee() {
+        this.joinedProjects = new ArrayList<>();
+        this.favoriteProjects = new ArrayList<>();
     }
 
     public Employee(String id, String name, String code, String email) {
@@ -20,9 +27,10 @@ public class Employee {
         this.code = code;
         this.email = email;
         this.role = role;
+        this.joinedProjects = new ArrayList<>();
+        this.favoriteProjects = new ArrayList<>();
     }
 
-    // Getters and Setters
     public String getId() { return id; }
     public void setId(String id) { this.id = id; }
 
@@ -37,4 +45,18 @@ public class Employee {
 
     public String getRole() { return role; }
     public void setRole(String role) { this.role = role; }
+
+    public List<String> getJoinedProjects() {
+        return joinedProjects != null ? joinedProjects : new ArrayList<>();
+    }
+    public void setJoinedProjects(List<String> joinedProjects) {
+        this.joinedProjects = joinedProjects;
+    }
+
+    public List<String> getFavoriteProjects() {
+        return favoriteProjects != null ? favoriteProjects : new ArrayList<>();
+    }
+    public void setFavoriteProjects(List<String> favoriteProjects) {
+        this.favoriteProjects = favoriteProjects;
+    }
 }

@@ -25,7 +25,6 @@ import androidx.core.content.FileProvider;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
-import com.example.expensetrackeradmin.BuildConfig;
 import com.example.expensetrackeradmin.R;
 import com.example.expensetrackeradmin.adapters.ExpenseImageAdapter;
 import com.example.expensetrackeradmin.helpers.CloudinaryHelper;

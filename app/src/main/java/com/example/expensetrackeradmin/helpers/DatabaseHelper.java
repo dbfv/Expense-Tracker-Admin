@@ -12,6 +12,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
+import org.json.JSONArray;
+import org.json.JSONException;
+
 import com.example.expensetrackeradmin.models.Project;
 import com.example.expensetrackeradmin.models.Expense;
 import com.example.expensetrackeradmin.models.Employee;
@@ -38,7 +41,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
     }
 
     private static final String DATABASE_NAME = "ExpenseTracker.db";
-    private static final int DATABASE_VERSION = 7;
+    private static final int DATABASE_VERSION = 8;
 
     // Table names
     public static final String TABLE_PROJECTS = "projects";
@@ -91,6 +94,8 @@ public class DatabaseHelper extends SQLiteOpenHelper {
     public static final String COLUMN_EMP_CODE = "code";
     public static final String COLUMN_EMP_EMAIL = "email";
     public static final String COLUMN_EMP_ROLE = "role";
+    public static final String COLUMN_EMP_JOINED_PROJECTS = "joined_projects";
+    public static final String COLUMN_EMP_FAVORITE_PROJECTS = "favorite_projects";
     public static final String COLUMN_SYNC_STATUS = "sync_status";
 
     // SQL Statements
@@ -130,8 +135,10 @@ public class DatabaseHelper extends SQLiteOpenHelper {
             + COLUMN_EMP_NAME + " TEXT NOT NULL, "
             + COLUMN_EMP_CODE + " TEXT UNIQUE NOT NULL, "
             + COLUMN_EMP_EMAIL + " TEXT UNIQUE NOT NULL, "
-                + COLUMN_EMP_ROLE + " TEXT NOT NULL DEFAULT 'employee', "
-                + COLUMN_SYNC_STATUS + " INTEGER NOT NULL DEFAULT 0"
+            + COLUMN_EMP_ROLE + " TEXT NOT NULL DEFAULT 'employee', "
+            + COLUMN_EMP_JOINED_PROJECTS + " TEXT, "
+            + COLUMN_EMP_FAVORITE_PROJECTS + " TEXT, "
+            + COLUMN_SYNC_STATUS + " INTEGER NOT NULL DEFAULT 0"
             + ");";
         private static final String CREATE_TABLE_EXPENSE_IMAGES = "CREATE TABLE " + TABLE_EXPENSE_IMAGES + " ("
             + COLUMN_EXP_IMAGE_ID + " TEXT PRIMARY KEY, "
@@ -234,18 +241,35 @@ public class DatabaseHelper extends SQLiteOpenHelper {
             } catch (Exception ignored) {
             }
         }
+
+        if (oldVersion < 8) {
+            try {
+                db.execSQL("ALTER TABLE " + TABLE_EMPLOYEES + " ADD COLUMN " + COLUMN_EMP_JOINED_PROJECTS + " TEXT");
+            } catch (Exception ignored) {
+            }
+            try {
+                db.execSQL("ALTER TABLE " + TABLE_EMPLOYEES + " ADD COLUMN " + COLUMN_EMP_FAVORITE_PROJECTS + " TEXT");
+            } catch (Exception ignored) {
+            }
+        }
     }
     public double getTotalExpenseForProject(String projectId) {
         SQLiteDatabase db = this.getReadableDatabase();
         double totalSpent = 0.0;
 
-        String query = "SELECT SUM(" + COLUMN_EXPENSE_AMOUNT + ") FROM " + TABLE_EXPENSES + " WHERE " + COLUMN_EXP_PROJECT_ID + " = ?";
-        android.database.Cursor cursor = db.rawQuery(query, new String[]{projectId});
+        Cursor cursor = db.query(TABLE_EXPENSES, 
+                new String[]{COLUMN_EXPENSE_AMOUNT, COLUMN_EXPENSE_CURRENCY},
+                COLUMN_EXP_PROJECT_ID + "=?",
+                new String[]{projectId}, null, null, null);
 
-        if (cursor.moveToFirst()) {
-            totalSpent = cursor.getDouble(0);
+        if (cursor != null) {
+            while (cursor.moveToNext()) {
+                double amount = cursor.getDouble(0);
+                String currency = cursor.getString(1);
+                totalSpent += CurrencyHelper.convertToUsd(amount, currency);
+            }
+            cursor.close();
         }
-        cursor.close();
 
         return totalSpent;
     }
@@ -400,6 +424,8 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         values.put(COLUMN_EMP_CODE, employee.getCode());
         values.put(COLUMN_EMP_EMAIL, employee.getEmail());
         values.put(COLUMN_EMP_ROLE, employee.getRole() == null || employee.getRole().trim().isEmpty() ? "employee" : employee.getRole());
+        values.put(COLUMN_EMP_JOINED_PROJECTS, new org.json.JSONArray(employee.getJoinedProjects()).toString());
+        values.put(COLUMN_EMP_FAVORITE_PROJECTS, new org.json.JSONArray(employee.getFavoriteProjects()).toString());
         values.put(COLUMN_SYNC_STATUS, 0);
 
         return db.insert(TABLE_EMPLOYEES, null, values) != -1;
@@ -416,6 +442,8 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         values.put(COLUMN_EMP_CODE, employee.getCode());
         values.put(COLUMN_EMP_EMAIL, employee.getEmail());
         values.put(COLUMN_EMP_ROLE, employee.getRole() == null || employee.getRole().trim().isEmpty() ? "employee" : employee.getRole());
+        values.put(COLUMN_EMP_JOINED_PROJECTS, new org.json.JSONArray(employee.getJoinedProjects()).toString());
+        values.put(COLUMN_EMP_FAVORITE_PROJECTS, new org.json.JSONArray(employee.getFavoriteProjects()).toString());
         values.put(COLUMN_SYNC_STATUS, 2);
 
         return db.update(TABLE_EMPLOYEES, values, COLUMN_EMP_ID + "=?", new String[]{employee.getId().trim()}) > 0;
@@ -917,6 +945,8 @@ public class DatabaseHelper extends SQLiteOpenHelper {
                             cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_EMP_EMAIL)),
                             cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_EMP_ROLE))
                     );
+                    employee.setJoinedProjects(parseProjectList(cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_EMP_JOINED_PROJECTS))));
+                    employee.setFavoriteProjects(parseProjectList(cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_EMP_FAVORITE_PROJECTS))));
                     employeeList.add(employee);
                 } while (cursor.moveToNext());
             }
@@ -943,6 +973,8 @@ public class DatabaseHelper extends SQLiteOpenHelper {
                             cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_EMP_EMAIL)),
                             cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_EMP_ROLE))
                     );
+                    employee.setJoinedProjects(parseProjectList(cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_EMP_JOINED_PROJECTS))));
+                    employee.setFavoriteProjects(parseProjectList(cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_EMP_FAVORITE_PROJECTS))));
                     employeeList.add(employee);
                 } while (cursor.moveToNext());
             }
@@ -1032,6 +1064,8 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         values.put(COLUMN_EMP_CODE, safeText(employee.getCode()));
         values.put(COLUMN_EMP_EMAIL, safeText(employee.getEmail()));
         values.put(COLUMN_EMP_ROLE, safeTextWithDefault(employee.getRole(), "employee"));
+        values.put(COLUMN_EMP_JOINED_PROJECTS, new JSONArray(employee.getJoinedProjects()).toString());
+        values.put(COLUMN_EMP_FAVORITE_PROJECTS, new JSONArray(employee.getFavoriteProjects()).toString());
         values.put(COLUMN_SYNC_STATUS, 1);
 
         int rowsUpdated = db.update(TABLE_EMPLOYEES, values, COLUMN_EMP_ID + "=?", new String[]{employeeId});
@@ -1122,6 +1156,21 @@ public class DatabaseHelper extends SQLiteOpenHelper {
             return fallback;
         }
         return value;
+    }
+
+    private List<String> parseProjectList(String jsonStr) {
+        List<String> result = new ArrayList<>();
+        if (jsonStr == null || jsonStr.trim().isEmpty()) {
+            return result;
+        }
+        try {
+            JSONArray arr = new JSONArray(jsonStr);
+            for (int i = 0; i < arr.length(); i++) {
+                result.add(arr.getString(i));
+            }
+        } catch (JSONException ignored) {
+        }
+        return result;
     }
 
     public void setSyncStatus(String tableName, String idColumn, String idValue, int status) {
