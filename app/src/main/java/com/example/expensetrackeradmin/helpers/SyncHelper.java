@@ -172,8 +172,23 @@ public class SyncHelper {
                 continue;
             }
 
+                Map<String, Object> payload = new HashMap<>();
+                payload.put("projectId", project.getProjectId());
+                payload.put("name", project.getName());
+                payload.put("password", project.getPassword());
+                payload.put("passwordHash", project.getPasswordHash());
+                payload.put("description", project.getDescription());
+                payload.put("startDate", project.getStartDate());
+                payload.put("endDate", project.getEndDate());
+                payload.put("manager", project.getManager());
+                payload.put("status", project.getStatus());
+                payload.put("budget", project.getBudget());
+                payload.put("specialRequirements", project.getSpecialRequirements());
+                payload.put("clientInfo", project.getClientInfo());
+                payload.put("spentAmount", project.getSpentAmount());
+
             Task<Void> task = mDatabase.child("projects").child(project.getProjectId())
-                    .setValue(project)
+                    .updateChildren(payload)
                     .addOnSuccessListener(unused -> localDb.setSyncStatus(
                             DatabaseHelper.TABLE_PROJECTS,
                             DatabaseHelper.COLUMN_PROJECT_ID,
@@ -202,8 +217,17 @@ public class SyncHelper {
                 continue;
             }
 
+                Map<String, Object> payload = new HashMap<>();
+                payload.put("id", employee.getId());
+                payload.put("name", employee.getName());
+                payload.put("code", employee.getCode());
+                payload.put("email", employee.getEmail());
+                payload.put("role", employee.getRole());
+                payload.put("joined_projects", employee.getJoinedProjects());
+                payload.put("favorite_projects", employee.getFavoriteProjects());
+
             Task<Void> task = mDatabase.child("employees").child(employee.getId())
-                    .setValue(employee)
+                    .updateChildren(payload)
                     .addOnSuccessListener(unused -> localDb.setSyncStatus(
                             DatabaseHelper.TABLE_EMPLOYEES,
                             DatabaseHelper.COLUMN_EMP_ID,
@@ -295,7 +319,7 @@ public class SyncHelper {
             @Override
             public void onDataChange(DataSnapshot snapshot) {
                 for (DataSnapshot item : snapshot.getChildren()) {
-                    Employee employee = item.getValue(Employee.class);
+                    Employee employee = parseEmployeeFromSnapshot(item);
                     if (employee == null) {
                         continue;
                     }
@@ -315,6 +339,29 @@ public class SyncHelper {
                 runCompletion(onComplete);
             }
         });
+    }
+
+    private Employee parseEmployeeFromSnapshot(DataSnapshot snapshot) {
+        String employeeId = firstNonBlank(readText(snapshot, "id"), snapshot.getKey());
+        if (isBlank(employeeId)) {
+            return null;
+        }
+
+        String role = readText(snapshot, "role");
+        if (isBlank(role)) {
+            role = "employee";
+        }
+
+        Employee employee = new Employee(
+                employeeId,
+                readText(snapshot, "name"),
+                readText(snapshot, "code"),
+                readText(snapshot, "email"),
+                role
+        );
+        employee.setJoinedProjects(readStringList(snapshot, "joined_projects", "joinedProjects"));
+        employee.setFavoriteProjects(readStringList(snapshot, "favorite_projects", "favoriteProjects"));
+        return employee;
     }
 
     private void pullExpensesFromCloud(Runnable onComplete) {
@@ -403,6 +450,63 @@ public class SyncHelper {
     private String readNullableText(DataSnapshot snapshot, String key) {
         String value = readText(snapshot, key).trim();
         return value.isEmpty() ? null : value;
+    }
+
+    private List<String> readStringList(DataSnapshot snapshot, String... keys) {
+        List<String> values = new ArrayList<>();
+        if (snapshot == null || keys == null) {
+            return values;
+        }
+
+        for (String key : keys) {
+            if (isBlank(key)) {
+                continue;
+            }
+
+            DataSnapshot child = snapshot.child(key);
+            if (!child.exists()) {
+                continue;
+            }
+
+            Object rawValue = child.getValue();
+            appendStringValues(values, rawValue);
+            if (!values.isEmpty()) {
+                return values;
+            }
+        }
+
+        return values;
+    }
+
+    private void appendStringValues(List<String> target, Object rawValue) {
+        if (target == null || rawValue == null) {
+            return;
+        }
+
+        if (rawValue instanceof List) {
+            for (Object item : (List<?>) rawValue) {
+                if (item == null) {
+                    continue;
+                }
+                String value = String.valueOf(item).trim();
+                if (!value.isEmpty()) {
+                    target.add(value);
+                }
+            }
+            return;
+        }
+
+        if (rawValue instanceof Map) {
+            for (Object item : ((Map<?, ?>) rawValue).values()) {
+                if (item == null) {
+                    continue;
+                }
+                String value = String.valueOf(item).trim();
+                if (!value.isEmpty()) {
+                    target.add(value);
+                }
+            }
+        }
     }
 
     private double readDouble(DataSnapshot snapshot, String key) {

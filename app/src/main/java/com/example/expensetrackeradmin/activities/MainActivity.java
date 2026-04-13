@@ -156,7 +156,7 @@ public class MainActivity extends AppCompatActivity {
         adapter.updateData(filteredList);
     }
 
-    private void triggerManualSync(boolean showFeedback) {
+    private void triggerSync(boolean forceFullPush, boolean showFeedback) {
         if (!SyncTriggerHelper.isNetworkAvailable(this)) {
             if (showFeedback) {
                 Toast.makeText(this, "No network connection.", Toast.LENGTH_SHORT).show();
@@ -164,10 +164,14 @@ public class MainActivity extends AppCompatActivity {
             return;
         }
 
-        SyncTriggerHelper.attemptSyncIfOnline(this, true, () -> runOnUiThread(this::loadProjectsFromDB));
+        SyncTriggerHelper.attemptSyncIfOnline(this, forceFullPush, () -> runOnUiThread(this::loadProjectsFromDB));
         if (showFeedback) {
             Toast.makeText(this, "Sync started", Toast.LENGTH_SHORT).show();
         }
+    }
+
+    private void triggerManualSync(boolean showFeedback) {
+        triggerSync(true, showFeedback);
     }
 
     private void attemptAutoSync() {
@@ -176,7 +180,7 @@ public class MainActivity extends AppCompatActivity {
             return;
         }
         lastAutoSyncAttemptMs = now;
-        triggerManualSync(false);
+        triggerSync(false, false);
     }
 
     private void registerNetworkCallback() {
